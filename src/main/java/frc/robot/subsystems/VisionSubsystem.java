@@ -2,6 +2,8 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -23,9 +25,25 @@ public class VisionSubsystem extends SubsystemBase {
     // Check your Limelight web interface at http://limelight.local:5801
     private static final String LIMELIGHT_NAME = "limelight-front";
 
+    // Launch velocity constant (meters per second)
+    private static final double LAUNCH_VELOCITY = 5.2;
+
     private int debugCounter = 0;
+    private final ShuffleboardTab limelightTab;
 
     public VisionSubsystem() {
+        // Create Shuffleboard tab for Limelight data
+        limelightTab = Shuffleboard.getTab("Limelight");
+
+        // Add distance and angle entries to Shuffleboard
+        limelightTab.addNumber("Distance to AprilTag (m)", this::getDistanceToAprilTag)
+            .withPosition(0, 0)
+            .withSize(2, 1);
+
+        limelightTab.addNumber("Launch Angle (degrees)", this::getLaunchAngle)
+            .withPosition(0, 1)
+            .withSize(2, 1);
+
         System.out.println("===========================================");
         System.out.println("VisionSubsystem initialized");
         System.out.println("Looking for Limelight with name: \"" + LIMELIGHT_NAME + "\"");
@@ -54,6 +72,10 @@ public class VisionSubsystem extends SubsystemBase {
         SmartDashboard.putBoolean("Vision/HasTarget", hasValidTarget());
         SmartDashboard.putNumber("Vision/TagID", tid);
         SmartDashboard.putNumber("Vision/Pipeline", pipeline);
+
+        // Publish distance and angle calculations
+        SmartDashboard.putNumber("Vision/Distance_to_AprilTag_m", getDistanceToAprilTag());
+        SmartDashboard.putNumber("Vision/Launch_Angle_deg", getLaunchAngle());
 
         // Print debug info every 50 cycles (about once per second)
         debugCounter++;
@@ -236,5 +258,61 @@ public class VisionSubsystem extends SubsystemBase {
      */
     public String getLimelightName() {
         return LIMELIGHT_NAME;
+    }
+
+    /**
+     * Gets the distance to the AprilTag in meters using the 3D pose data.
+     * The distance is calculated as the Euclidean distance (sqrt(x^2 + y^2 + z^2)).
+     *
+     * @return Distance to AprilTag in meters, or 0.0 if no valid target
+     */
+    public double getDistanceToAprilTag() {
+        if (!hasValidTarget()) {
+            return 0.0;
+        }
+
+        double[] pose3d = get3DPose();
+
+        // Check if we have valid pose data
+        if (pose3d.length < 3) {
+            return 0.0;
+        }
+
+        // Calculate 3D distance: sqrt(x^2 + y^2 + z^2)
+        double x = pose3d[0];
+        double y = pose3d[1];
+        double z = pose3d[2];
+
+        return Math.sqrt(x * x + y * y + z * z);
+    }
+
+    /**
+     * Calculates the launch angle needed to hit the target.
+     * Uses the formula: angle = arcsin(distance / velocity)
+     * where velocity = 5.2 m/s
+     *
+     * @return Launch angle in degrees, or 0.0 if no valid target or calculation error
+     */
+    public double getLaunchAngle() {
+        double distance = getDistanceToAprilTag();
+
+        if (distance <= 0.0) {
+            return 0.0;
+        }
+
+        // Calculate the ratio for arcsin
+        double ratio = distance / LAUNCH_VELOCITY;
+
+        // Check if ratio is valid for arcsin (must be between -1 and 1)
+        if (ratio > 1.0 || ratio < -1.0) {
+            // Distance is too far for the given velocity
+            return 0.0;
+        }
+
+        // Calculate angle in radians then convert to degrees
+        double angleRadians = Math.asin(ratio);
+        double angleDegrees = Math.toDegrees(angleRadians);
+
+        return angleDegrees;
     }
 }
