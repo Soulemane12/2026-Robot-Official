@@ -19,44 +19,47 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.commands.FollowAprilTagCommand;
+import frc.robot.commands.AlignToAprilTag;
+import frc.robot.commands.AlignToReefTagRelative;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.commands.FollowPathCommand;
 
-//import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 @SuppressWarnings("unused")
 public class RobotContainer {
-   // private final SendableChooser<Command> autoChooser;
-    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
+    private double MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
+    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1)
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+    private final SwerveRequest.RobotCentric forwardStraight = new SwerveRequest.RobotCentric()
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
     private final CommandXboxController joystick = new CommandXboxController(0);
 
-    // Subsystems
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+
+    private final SendableChooser<Command> autoChooser;
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem();
 
-    // Commands
-    // AprilTag follow command - robot maintains distance and faces the tag
-    // Parameters: (VisionSubsystem, Drivetrain, targetTY, targetAngle)
-    // - targetTY: The TY value to maintain (controls distance). Higher = closer. Start with 0.
-    // - targetAngle: Usually 0 to face the tag head-on
-    private final FollowAprilTagCommand followAprilTagCommand =
-        new FollowAprilTagCommand(m_visionSubsystem, drivetrain, 0.0, 0.0);
+    // AprilTag alignment command - robot aligns to precise position/rotation relative to tag
+    private final AlignToAprilTag alignToAprilTagCommand =
+        new AlignToAprilTag(m_visionSubsystem, drivetrain);
 
     public RobotContainer() {
-     //   autoChooser = AutoBuilder.buildAutoChooser("New Auto");
+        autoChooser = AutoBuilder.buildAutoChooser("New Auto");
 
         configureBindings();
-      //  SmartDashboard.putData("Auto Mode", autoChooser);
+        FollowPathCommand.warmupCommand().schedule();
+
+        SmartDashboard.putData("Auto Mode", autoChooser);
     }
 
     private void configureBindings() {
@@ -64,42 +67,58 @@ public class RobotContainer {
         // and Y is defined as to the left according to WPILib convention.
         drivetrain.setDefaultCommand(
             drivetrain.applyRequest(() ->
-                drive.withVelocityX(-joystick.getLeftY() * MaxSpeed)
-                    .withVelocityY(-joystick.getLeftX() * MaxSpeed)
-                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate)
+                drive.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
+                    .withVelocityY(-joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
+                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
             )
         );
 
-        // Idle while the robot is disabled
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
-        // A button = Brake
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
-
-        // B button = Point wheels
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
-        // X button = Reset field-centric heading
-        joystick.x().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+        joystick.povUp().whileTrue(drivetrain.applyRequest(() ->
+            forwardStraight.withVelocityX(0.5).withVelocityY(0))
+        );
+        joystick.povDown().whileTrue(drivetrain.applyRequest(() ->
+            forwardStraight.withVelocityX(-0.5).withVelocityY(0))
+        );
+        joystick.x().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
-        // ===== APRILTAG FOLLOWING =====
-        // Y button = Follow AprilTag (HOLD to follow)
-        // Hold up a board with an AprilTag and move it around!
-        // The robot will face it and maintain distance
-        joystick.y().whileTrue(followAprilTagCommand);
 
-        // Right bumper = Follow AprilTag (alternative binding)
-        joystick.rightBumper().whileTrue(followAprilTagCommand);
+   /* 
+        joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+        joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+        joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+        joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+
+*/
+        
 
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        // ===== APRILTAG ALIGNMENT =====
+        // Y button = Align to AprilTag
+        // Robot will align to a precise position and rotation relative to the tag
+        // Command finishes when aligned or if tag is lost
+        joystick.y().onTrue(alignToAprilTagCommand);
+
+
+        // ===== REEF ALIGNMENT =====
+        // POV Right = Align to reef tag (right side scoring)
+        // POV Left = Align to reef tag (left side scoring)
+        // 3 second timeout for safety
+        joystick.leftBumper().whileTrue(new AlignToReefTagRelative(true, drivetrain).withTimeout(3));
+        joystick.rightBumper().whileTrue(new AlignToReefTagRelative(false, drivetrain).withTimeout(3));
     }
 
-  //  public Command getAutonomousCommand() {
-      //  return autoChooser.getSelected();
-  //  }
+    public Command getAutonomousCommand() {
+        return autoChooser.getSelected();
+    }
 }

@@ -7,13 +7,37 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Example Path"
+            "pathName": "MoveBack_Middle"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "ShootBalls"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "Copy of Example Path"
+            "pathName": "BackMiddle_Pickup"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Intake"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Pickup_Shoot"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "ShootBalls"
           }
         }
       ]
