@@ -11,7 +11,7 @@ public final class Constants {
 
     // X-axis (forward/backward movement)
     public static final double X_APRILTAG_ALIGNMENT_P = 2.0;  // Start with 2.0, tune as needed
-    public static final double X_SETPOINT_APRILTAG_ALIGNMENT = 1.0;  // Target distance in meters from tag
+    public static final double X_SETPOINT_APRILTAG_ALIGNMENT = 1.5;  // Target distance in meters from tag
     public static final double X_TOLERANCE_APRILTAG_ALIGNMENT = 0.05;  // 5cm tolerance
 
     // Y-axis (left/right strafe movement)
