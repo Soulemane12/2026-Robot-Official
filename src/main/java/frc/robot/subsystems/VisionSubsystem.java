@@ -1,11 +1,17 @@
 package frc.robot.subsystems;
 
+import java.util.function.BiConsumer;
+
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.LimelightHelpers;
+import frc.robot.LimelightHelpers.PoseEstimate;
 
 /**
  * VisionSubsystem handles all Limelight camera operations for AprilTag tracking.
@@ -30,8 +36,24 @@ public class VisionSubsystem extends SubsystemBase {
 
     private int debugCounter = 0;
     private final ShuffleboardTab limelightTab;
+    private final BiConsumer<Pose2d, Double> visionUpdater;
 
+    /**
+     * Creates a VisionSubsystem without vision measurement updates.
+     * Use this constructor if you only need basic vision data without odometry fusion.
+     */
     public VisionSubsystem() {
+        this(null);
+    }
+
+    /**
+     * Creates a VisionSubsystem with vision measurement updates to the drivetrain.
+     *
+     * @param visionUpdater Callback to update drivetrain with vision pose estimates.
+     *                      Accepts (Pose2d pose, Double timestamp)
+     */
+    public VisionSubsystem(BiConsumer<Pose2d, Double> visionUpdater) {
+        this.visionUpdater = visionUpdater;
         // Create Shuffleboard tab for Limelight data
         limelightTab = Shuffleboard.getTab("Limelight");
 
@@ -54,6 +76,9 @@ public class VisionSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
+        // Update drivetrain with vision measurements if callback provided
+        addLatestEstimate();
+
         // Get raw NetworkTable values for debugging
         NetworkTable table = NetworkTableInstance.getDefault().getTable(LIMELIGHT_NAME);
         double tv = table.getEntry("tv").getDouble(-999);
@@ -76,6 +101,16 @@ public class VisionSubsystem extends SubsystemBase {
         // Publish distance and angle calculations
         SmartDashboard.putNumber("Vision/Distance_to_AprilTag_m", getDistanceToAprilTag());
         SmartDashboard.putNumber("Vision/Launch_Angle_deg", getLaunchAngle());
+
+        // Publish vision pose estimate info
+        PoseEstimate estimate = getPoseMT1();
+        if (estimate != null && estimate.pose != null) {
+            SmartDashboard.putNumber("Vision/PoseEstimate_X", estimate.pose.getX());
+            SmartDashboard.putNumber("Vision/PoseEstimate_Y", estimate.pose.getY());
+            SmartDashboard.putNumber("Vision/PoseEstimate_Rotation", estimate.pose.getRotation().getDegrees());
+            SmartDashboard.putNumber("Vision/TagCount", estimate.tagCount);
+            SmartDashboard.putNumber("Vision/Latency_ms", estimate.timestampSeconds * 1000);
+        }
 
         // Print debug info every 50 cycles (about once per second)
         debugCounter++;
@@ -314,5 +349,64 @@ public class VisionSubsystem extends SubsystemBase {
         double angleDegrees = Math.toDegrees(angleRadians);
 
         return angleDegrees;
+    }
+
+    /**
+     * Gets the latest MegaTag1 pose estimate from the Limelight.
+     * Returns null if no estimate is available.
+     *
+     * @return PoseEstimate with robot pose, timestamp, and tag info
+     */
+    public PoseEstimate getPoseMT1() {
+        return LimelightHelpers.getBotPoseEstimate_wpiBlue(LIMELIGHT_NAME);
+    }
+
+    /**
+     * Determines if a pose estimate should be accepted and used for odometry updates.
+     * Can be enhanced with more sophisticated filtering based on tag count, distance, etc.
+     *
+     * @param estimate The pose estimate to validate
+     * @return true if the estimate should be accepted
+     */
+    public boolean shouldAcceptEstimate(PoseEstimate estimate) {
+        // Basic validation: check if estimate exists and has valid data
+        if (estimate == null || estimate.pose == null) {
+            return false;
+        }
+
+        // Check if we have at least one tag
+        if (estimate.tagCount < 1) {
+            return false;
+        }
+
+        // Future enhancements could include:
+        // - Distance filtering (reject if tags too far)
+        // - Area filtering (reject if tags too small)
+        // - Ambiguity filtering
+        // - Velocity consistency checks
+
+        return true;
+    }
+
+    /**
+     * Adds the latest vision pose estimate to the drivetrain's Kalman filter.
+     * Called automatically in periodic() if a vision updater callback was provided.
+     */
+    public void addLatestEstimate() {
+        // Skip if no callback provided
+        if (visionUpdater == null) {
+            return;
+        }
+
+        double currentTimeSeconds = Timer.getFPGATimestamp();
+        PoseEstimate latestEstimate = getPoseMT1();
+
+        if (shouldAcceptEstimate(latestEstimate)) {
+            // Calculate timestamp: current time minus latency
+            double estimateTimeSeconds = currentTimeSeconds - latestEstimate.timestampSeconds;
+
+            // Call the drivetrain's addVisionMeasurement
+            visionUpdater.accept(latestEstimate.pose, estimateTimeSeconds);
+        }
     }
 }

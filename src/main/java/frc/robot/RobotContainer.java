@@ -19,8 +19,6 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.commands.AlignToAprilTag;
-import frc.robot.commands.AlignToReefTagRelative;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 
@@ -47,11 +45,8 @@ public class RobotContainer {
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
     private final SendableChooser<Command> autoChooser;
-    private final VisionSubsystem m_visionSubsystem = new VisionSubsystem();
-
-    // AprilTag alignment command - robot aligns to precise position/rotation relative to tag
-    private final AlignToAprilTag alignToAprilTagCommand =
-        new AlignToAprilTag(m_visionSubsystem, drivetrain);
+    // Vision subsystem with callback to update drivetrain odometry
+    private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
 
     public RobotContainer() {
         autoChooser = AutoBuilder.buildAutoChooser("New Auto");
@@ -65,18 +60,17 @@ public class RobotContainer {
     private void configureBindings() {
         // Note that X is defined as forward according to WPILib convention,
         // and Y is defined as to the left according to WPILib convention.
-        drivetrain.setDefaultCommand(
-            drivetrain.applyRequest(() ->
-                drive.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                    .withVelocityY(-joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
-            )
-        );
+
+        // Default teleop drive command using the new teleopDrive method
+        drivetrain.setDefaultCommand(drivetrain.teleopDrive(joystick));
 
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
+
+        // Hub alignment - hold left trigger to auto-rotate toward hub
+        joystick.leftTrigger(0.05).whileTrue(drivetrain.alignDrive(joystick));
 
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
@@ -102,20 +96,6 @@ public class RobotContainer {
         
 
         drivetrain.registerTelemetry(logger::telemeterize);
-
-        // ===== APRILTAG ALIGNMENT =====
-        // Y button = Align to AprilTag
-        // Robot will align to a precise position and rotation relative to the tag
-        // Command finishes when aligned or if tag is lost
-        joystick.y().onTrue(alignToAprilTagCommand);
-
-
-        // ===== REEF ALIGNMENT =====
-        // POV Right = Align to reef tag (right side scoring)
-        // POV Left = Align to reef tag (left side scoring)
-        // 3 second timeout for safety
-        joystick.leftBumper().whileTrue(new AlignToReefTagRelative(true, drivetrain).withTimeout(3));
-        joystick.rightBumper().whileTrue(new AlignToReefTagRelative(false, drivetrain).withTimeout(3));
     }
 
     public Command getAutonomousCommand() {

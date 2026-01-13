@@ -8,6 +8,8 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
+import com.ctre.phoenix6.swerve.SwerveModule;
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
@@ -22,6 +24,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
@@ -30,6 +33,8 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Constants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 /**
@@ -53,6 +58,17 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     /** Swerve request to apply during robot-centric path following */
     private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
+
+    /** Swerve request for teleoperated driving */
+    private final SwerveRequest.FieldCentric teleopRequest = new SwerveRequest.FieldCentric()
+        .withDeadband(Constants.DriveConstants.maxSpeed * 0.1)
+        .withRotationalDeadband(Constants.DriveConstants.maxAngularRate * 0.1)
+        .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+
+    /** Swerve request for alignment (no rotation deadband) */
+    private final SwerveRequest.FieldCentric alignRequest = new SwerveRequest.FieldCentric()
+        .withDeadband(Constants.DriveConstants.maxSpeed * 0.1)
+        .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
     /* Swerve requests to apply during SysId characterization */
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
@@ -280,6 +296,68 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 m_hasAppliedOperatorPerspective = true;
             });
         }
+    }
+
+    /**
+     * Command for teleoperated driving with field-centric control.
+     *
+     * @param controller The Xbox controller for driver input
+     * @return Command to run teleoperated driving
+     */
+    public Command teleopDrive(CommandXboxController controller) {
+        return applyRequest(() ->
+            teleopRequest.withVelocityX(-controller.getLeftY() * Constants.DriveConstants.maxSpeed)
+                .withVelocityY(-controller.getLeftX() * Constants.DriveConstants.maxSpeed)
+                .withRotationalRate(-controller.getRightX() * Constants.DriveConstants.maxAngularRate)
+        );
+    }
+
+    /**
+     * Command for hub-aligned driving. Automatically rotates to face the hub while
+     * allowing manual XY translation control.
+     *
+     * @param controller The Xbox controller for driver input
+     * @return Command to run hub-aligned driving
+     */
+    public Command alignDrive(CommandXboxController controller) {
+        return applyRequest(() -> {
+            Pose2d drivePose = getState().Pose;
+            double centerToShooterMeters = -Constants.DriveConstants.shooterSideOffset.in(Meters);
+            Pose2d hubPose = Constants.DriveConstants.getHubPose().toPose2d();
+            double centerToHubMeters = drivePose.getTranslation().getDistance(hubPose.getTranslation());
+            double shooterToCenterToHubAngleRads = Math.acos(centerToShooterMeters / centerToHubMeters);
+            Rotation2d shooterToCenterToHubAngle = Rotation2d.fromRadians(shooterToCenterToHubAngleRads);
+            Rotation2d offsetFromHubDesiredAngle = Rotation2d.kCCW_90deg.minus(shooterToCenterToHubAngle);
+            Rotation2d desiredCenterAngleFieldRelative = offsetFromHubDesiredAngle.plus(
+                drivePose.relativeTo(hubPose).getTranslation().getAngle()
+            );
+            Rotation2d currentAngle = drivePose.getRotation();
+            double rotationalRate = Constants.DriveConstants.rotationController.calculate(
+                currentAngle.getRadians(),
+                desiredCenterAngleFieldRelative.plus(Rotation2d.k180deg).getRadians()
+            );
+
+            return alignRequest.withVelocityX(-controller.getLeftY() * Constants.DriveConstants.maxSpeed)
+                .withVelocityY(-controller.getLeftX() * Constants.DriveConstants.maxSpeed)
+                .withRotationalRate(rotationalRate * Constants.DriveConstants.maxAngularRate);
+        });
+    }
+
+    /**
+     * Calculates the distance from the shooter position to the hub.
+     * Uses the shooter offset and robot pose to determine accurate shooting distance.
+     *
+     * @return Distance from shooter to hub in meters
+     */
+    public Distance getShotDistance() {
+        Pose2d drivePose = getState().Pose;
+        Pose2d hubPose = Constants.DriveConstants.getHubPose().toPose2d();
+        double centerToHubMeters = drivePose.getTranslation().getDistance(hubPose.getTranslation());
+        double centerToShooterMeters = Constants.DriveConstants.shooterSideOffset.in(Meters);
+        double shooterIdealToHubMeters = Math.sqrt(
+            Math.pow(centerToHubMeters, 2.0) - Math.pow(centerToShooterMeters, 2.0)
+        );
+        return Meters.of(shooterIdealToHubMeters);
     }
 
     private void startSimThread() {
