@@ -88,8 +88,8 @@ public class RobotContainer {
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
-        // Vision alignment - hold LEFT TRIGGER (LT, not LB!) to auto-rotate toward AprilTag
-        joystick.leftTrigger(0.1).whileTrue(
+        // Vision alignment - press LEFT TRIGGER (LT, not LB!) to toggle auto-rotate toward AprilTag
+        joystick.leftTrigger(0.1).toggleOnTrue(
             drivetrain.visionAlignDrive(joystick, m_visionSubsystem)
                 .beforeStarting(() -> {
                     drivetrain.resetAimLimiter();
