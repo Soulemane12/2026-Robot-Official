@@ -94,5 +94,17 @@ public final class Constants {
             controller.enableContinuousInput(-Math.PI, Math.PI);
             return controller;
         }
+
+        // PID controller for vision alignment (Limelight TX -> rotation)
+        public static final PIDController visionRotationController = getVisionRotationController();
+
+        private static PIDController getVisionRotationController() {
+            // TX is in degrees, output is angular velocity multiplier (0-1 range)
+            // kP = 0.1 means 10 degree error = 1.0 (full speed rotation)
+            // This gets multiplied by maxAngularRate later
+            PIDController controller = new PIDController(0.1, 0.0, 0.005);
+            controller.setTolerance(1.0); // 1 degree tolerance
+            return controller;
+        }
     }
 }

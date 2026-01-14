@@ -48,6 +48,10 @@ public class RobotContainer {
     // Vision subsystem with callback to update drivetrain odometry
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
 
+    // Store previous Limelight settings for restoration after vision alignment
+    private int prevPipeline = 0;
+    private int prevLedMode = 0;
+
     public RobotContainer() {
         autoChooser = AutoBuilder.buildAutoChooser("New Auto");
 
@@ -55,6 +59,21 @@ public class RobotContainer {
         FollowPathCommand.warmupCommand().schedule();
 
         SmartDashboard.putData("Auto Mode", autoChooser);
+
+        // Continuous monitoring of trigger for debugging - schedule it to run always
+        new Command() {
+            @Override
+            public void execute() {
+                double triggerValue = joystick.getLeftTriggerAxis();
+                SmartDashboard.putNumber("Debug/LeftTriggerRaw", triggerValue);
+                SmartDashboard.putBoolean("Debug/TriggerAboveThreshold", triggerValue > 0.1);
+            }
+
+            @Override
+            public boolean runsWhenDisabled() {
+                return true;
+            }
+        }.ignoringDisable(true).schedule();
     }
 
     private void configureBindings() {
@@ -69,8 +88,28 @@ public class RobotContainer {
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
-        // Hub alignment - hold left trigger to auto-rotate toward hub
-        joystick.leftTrigger(0.05).whileTrue(drivetrain.alignDrive(joystick));
+        // Vision alignment - hold LEFT TRIGGER (LT, not LB!) to auto-rotate toward AprilTag
+        joystick.leftTrigger(0.1).whileTrue(
+            drivetrain.visionAlignDrive(joystick, m_visionSubsystem)
+                .beforeStarting(() -> {
+                    drivetrain.resetAimLimiter();
+
+                    // Store current settings before switching
+                    prevPipeline = m_visionSubsystem.getPipeline();
+                    prevLedMode = m_visionSubsystem.getLEDMode();
+
+                    // Switch to AprilTag pipeline and turn on LEDs
+                    m_visionSubsystem.setPipeline(0);   // Set to your AprilTag pipeline index
+                    m_visionSubsystem.setLEDMode(3);    // Turn on LEDs while aiming
+                })
+                .finallyDo(interrupted -> {
+                    drivetrain.resetAimLimiter();
+
+                    // Restore previous settings
+                    m_visionSubsystem.setPipeline(prevPipeline);
+                    m_visionSubsystem.setLEDMode(prevLedMode);
+                })
+        );
 
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
         joystick.b().whileTrue(drivetrain.applyRequest(() ->

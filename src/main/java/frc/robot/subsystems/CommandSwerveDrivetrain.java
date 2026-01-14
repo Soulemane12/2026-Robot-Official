@@ -19,6 +19,8 @@ import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -29,6 +31,9 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
@@ -56,6 +61,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
 
+    /** Shuffleboard tab for vision alignment debugging */
+    private final ShuffleboardTab visionAlignTab;
+
     /** Swerve request to apply during robot-centric path following */
     private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
 
@@ -69,6 +77,20 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.FieldCentric alignRequest = new SwerveRequest.FieldCentric()
         .withDeadband(Constants.DriveConstants.maxSpeed * 0.1)
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+
+    /** Aim mode: field-centric so left stick stays consistent while auto-rotating */
+    private final SwerveRequest.FieldCentric aimFieldCentric = new SwerveRequest.FieldCentric()
+        .withDeadband(0.0)
+        .withRotationalDeadband(0.0)
+        .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+
+    /** Vision alignment tuning parameters */
+    private static final double kAimKp = 6.0;            // (rad/s) per rad of tx error - increased for faster tracking
+    private static final double kTxDeadbandDeg = 0.5;    // ignore tiny noise - reduced to keep tracking
+    private static final double kMinAimRate = 0.3;       // rad/s to overcome stiction (0 to disable)
+
+    /** Smooth rotation so it doesn't snap/jitter */
+    private final SlewRateLimiter aimRotLimiter = new SlewRateLimiter(10.0); // rad/s^2
 
     /* Swerve requests to apply during SysId characterization */
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
@@ -152,6 +174,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SwerveModuleConstants<?, ?, ?>... modules
     ) {
         super(drivetrainConstants, modules);
+        visionAlignTab = Shuffleboard.getTab("Vision Align");
+        setupVisionAlignTab();
         if (Utils.isSimulation()) {
             startSimThread();
         }
@@ -177,6 +201,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SwerveModuleConstants<?, ?, ?>... modules
     ) {
         super(drivetrainConstants, odometryUpdateFrequency, modules);
+        visionAlignTab = Shuffleboard.getTab("Vision Align");
+        setupVisionAlignTab();
         if (Utils.isSimulation()) {
             startSimThread();
         }
@@ -210,10 +236,38 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SwerveModuleConstants<?, ?, ?>... modules
     ) {
         super(drivetrainConstants, odometryUpdateFrequency, odometryStandardDeviation, visionStandardDeviation, modules);
+        visionAlignTab = Shuffleboard.getTab("Vision Align");
+        setupVisionAlignTab();
         if (Utils.isSimulation()) {
             startSimThread();
         }
         configureAutoBuilder();
+    }
+
+    private void setupVisionAlignTab() {
+        // Left column - Vision data
+        visionAlignTab.addBoolean("Has Target", () -> SmartDashboard.getBoolean("Aim/hasTarget", false))
+            .withPosition(0, 0).withSize(2, 1);
+        visionAlignTab.addNumber("TX (deg)", () -> SmartDashboard.getNumber("Aim/txDeg", 0.0))
+            .withPosition(0, 1).withSize(2, 1);
+        visionAlignTab.addNumber("Rot Cmd Raw", () -> SmartDashboard.getNumber("Aim/rotCmdRaw", 0.0))
+            .withPosition(0, 2).withSize(2, 1);
+        visionAlignTab.addNumber("Rot Cmd Final", () -> SmartDashboard.getNumber("Aim/rotCmdFinal", 0.0))
+            .withPosition(0, 3).withSize(2, 1);
+
+        // Right column - Driver inputs
+        visionAlignTab.addBoolean("Driver Rotating", () -> SmartDashboard.getBoolean("Aim/driverRotating", false))
+            .withPosition(2, 0).withSize(2, 1);
+        visionAlignTab.addNumber("VX", () -> SmartDashboard.getNumber("Aim/vx", 0.0))
+            .withPosition(2, 1).withSize(2, 1);
+        visionAlignTab.addNumber("VY", () -> SmartDashboard.getNumber("Aim/vy", 0.0))
+            .withPosition(2, 2).withSize(2, 1);
+
+        // Bottom row - Command status
+        visionAlignTab.addBoolean("Command Running", () -> SmartDashboard.getBoolean("Aim/commandRunning", false))
+            .withPosition(0, 4).withSize(2, 1);
+        visionAlignTab.addNumber("Left Trigger", () -> SmartDashboard.getNumber("Aim/leftTrigger", 0.0))
+            .withPosition(2, 3).withSize(2, 1);
     }
 
     private void configureAutoBuilder() {
@@ -341,6 +395,91 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 .withVelocityY(-controller.getLeftX() * Constants.DriveConstants.maxSpeed)
                 .withRotationalRate(rotationalRate * Constants.DriveConstants.maxAngularRate);
         });
+    }
+
+    /**
+     * Command for vision-aligned driving. Uses Limelight to automatically rotate
+     * toward AprilTag while allowing manual XY translation control.
+     * Uses FIELD-CENTRIC control so translation stays consistent while rotating.
+     *
+     * @param controller The Xbox controller for driver input
+     * @param visionSubsystem The vision subsystem for AprilTag tracking
+     * @return Command to run vision-aligned driving
+     */
+    public Command visionAlignDrive(CommandXboxController controller, VisionSubsystem visionSubsystem) {
+        return applyRequest(() -> {
+            // Mark command as running
+            SmartDashboard.putBoolean("Aim/commandRunning", true);
+            SmartDashboard.putNumber("Aim/leftTrigger", controller.getLeftTriggerAxis());
+
+            // Driver translation (FIELD-CENTRIC so left stick stays consistent while aiming)
+            double xCmd = -controller.getLeftY();
+            double yCmd = -controller.getLeftX();
+
+            xCmd = MathUtil.applyDeadband(xCmd, 0.08);
+            yCmd = MathUtil.applyDeadband(yCmd, 0.08);
+
+            double vx = xCmd * Constants.DriveConstants.maxSpeed;
+            double vy = yCmd * Constants.DriveConstants.maxSpeed;
+
+            // Optional manual rotation override (right stick wins if moved)
+            double rightX = MathUtil.applyDeadband(controller.getRightX(), 0.12);
+            boolean driverRotating = Math.abs(rightX) > 0.0;
+            double manualRot = -rightX * Constants.DriveConstants.maxAngularRate;
+
+            double rotCmd = driverRotating ? manualRot : 0.0;
+
+            boolean hasTarget = visionSubsystem.hasValidTarget();
+            double txDeg = visionSubsystem.getTargetTX();
+
+            if (!driverRotating && hasTarget) {
+                if (Math.abs(txDeg) > kTxDeadbandDeg) {
+                    // tx is degrees; convert to radians for sane tuning
+                    double txRad = Math.toRadians(txDeg);
+
+                    // Limelight: +tx means target is right. WPILib: +omega is CCW.
+                    // To rotate toward a target on the right, you typically need CW => negative omega.
+                    rotCmd = -kAimKp * txRad;
+
+                    rotCmd = MathUtil.clamp(
+                        rotCmd,
+                        -Constants.DriveConstants.maxAngularRate,
+                        Constants.DriveConstants.maxAngularRate
+                    );
+
+                    if (kMinAimRate > 0.0 && Math.abs(rotCmd) < kMinAimRate) {
+                        rotCmd = Math.copySign(kMinAimRate, rotCmd);
+                    }
+                } else {
+                    rotCmd = 0.0;
+                }
+            }
+
+            double rotCmdBeforeLimiter = rotCmd;
+            rotCmd = aimRotLimiter.calculate(rotCmd);
+
+            // Publish comprehensive tuning data to SmartDashboard
+            SmartDashboard.putNumber("Aim/txDeg", visionSubsystem.getTargetTX());
+            SmartDashboard.putNumber("Aim/rotCmdRaw", rotCmdBeforeLimiter);
+            SmartDashboard.putNumber("Aim/rotCmdFinal", rotCmd);
+            SmartDashboard.putBoolean("Aim/hasTarget", visionSubsystem.hasValidTarget());
+            SmartDashboard.putBoolean("Aim/driverRotating", driverRotating);
+            SmartDashboard.putNumber("Aim/vx", vx);
+            SmartDashboard.putNumber("Aim/vy", vy);
+
+            return aimFieldCentric
+                .withVelocityX(vx)
+                .withVelocityY(vy)
+                .withRotationalRate(rotCmd);
+        });
+    }
+
+    /**
+     * Resets the aim rotation slew rate limiter.
+     * Call this when starting/ending vision alignment to prevent lag or leftover ramp.
+     */
+    public void resetAimLimiter() {
+        aimRotLimiter.reset(0.0);
     }
 
     /**

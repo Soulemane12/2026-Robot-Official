@@ -62,7 +62,7 @@ public class VisionSubsystem extends SubsystemBase {
             .withPosition(0, 0)
             .withSize(2, 1);
 
-        limelightTab.addNumber("Launch Angle (degrees)", this::getLaunchAngle)
+        limelightTab.addNumber("Shooter Angle (degrees)", this::getShooterAngle)
             .withPosition(0, 1)
             .withSize(2, 1);
 
@@ -99,8 +99,30 @@ public class VisionSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Vision/Pipeline", pipeline);
 
         // Publish distance and angle calculations
-        SmartDashboard.putNumber("Vision/Distance_to_AprilTag_m", getDistanceToAprilTag());
-        SmartDashboard.putNumber("Vision/Launch_Angle_deg", getLaunchAngle());
+        double distance = getDistanceToAprilTag();
+        SmartDashboard.putNumber("Vision/Distance_to_AprilTag_m", distance);
+        SmartDashboard.putNumber("Vision/Shooter_Angle_deg", getShooterAngle());
+
+        // Debug 3D pose data
+        double[] targetPose = NetworkTableInstance.getDefault()
+            .getTable(LIMELIGHT_NAME)
+            .getEntry("targetpose_cameraspace")
+            .getDoubleArray(new double[6]);
+
+        SmartDashboard.putNumber("Vision/Debug_TargetPose_Length", targetPose.length);
+        if (targetPose.length >= 3) {
+            SmartDashboard.putNumber("Vision/Debug_TargetPose_X", targetPose[0]);
+            SmartDashboard.putNumber("Vision/Debug_TargetPose_Y", targetPose[1]);
+            SmartDashboard.putNumber("Vision/Debug_TargetPose_Z", targetPose[2]);
+        }
+
+        double[] pose3d = get3DPose();
+        SmartDashboard.putNumber("Vision/Debug_CamTran_Length", pose3d.length);
+        if (pose3d.length >= 3) {
+            SmartDashboard.putNumber("Vision/Debug_CamTran_X", pose3d[0]);
+            SmartDashboard.putNumber("Vision/Debug_CamTran_Y", pose3d[1]);
+            SmartDashboard.putNumber("Vision/Debug_CamTran_Z", pose3d[2]);
+        }
 
         // Publish vision pose estimate info
         PoseEstimate estimate = getPoseMT1();
@@ -277,6 +299,17 @@ public class VisionSubsystem extends SubsystemBase {
     }
 
     /**
+     * Gets the current pipeline index.
+     * @return The active pipeline index (0-9)
+     */
+    public int getPipeline() {
+        return (int) NetworkTableInstance.getDefault()
+            .getTable(LIMELIGHT_NAME)
+            .getEntry("getpipe")
+            .getDouble(0.0);
+    }
+
+    /**
      * Sets the LED mode.
      * @param mode 0=pipeline default, 1=off, 2=blink, 3=on
      */
@@ -285,6 +318,17 @@ public class VisionSubsystem extends SubsystemBase {
             .getTable(LIMELIGHT_NAME)
             .getEntry("ledMode")
             .setNumber(mode);
+    }
+
+    /**
+     * Gets the current LED mode.
+     * @return The active LED mode (0-3)
+     */
+    public int getLEDMode() {
+        return (int) NetworkTableInstance.getDefault()
+            .getTable(LIMELIGHT_NAME)
+            .getEntry("ledMode")
+            .getDouble(0.0);
     }
 
     /**
@@ -306,6 +350,24 @@ public class VisionSubsystem extends SubsystemBase {
             return 0.0;
         }
 
+        // Try getting distance from targetpose_cameraspace first (more reliable)
+        double[] targetPose = NetworkTableInstance.getDefault()
+            .getTable(LIMELIGHT_NAME)
+            .getEntry("targetpose_cameraspace")
+            .getDoubleArray(new double[6]);
+
+        if (targetPose.length >= 3) {
+            double x = targetPose[0];
+            double y = targetPose[1];
+            double z = targetPose[2];
+
+            // Check if we have valid non-zero data
+            if (x != 0.0 || y != 0.0 || z != 0.0) {
+                return Math.sqrt(x * x + y * y + z * z);
+            }
+        }
+
+        // Fallback to camtran if targetpose_cameraspace doesn't work
         double[] pose3d = get3DPose();
 
         // Check if we have valid pose data
@@ -318,7 +380,48 @@ public class VisionSubsystem extends SubsystemBase {
         double y = pose3d[1];
         double z = pose3d[2];
 
+        // Check if we have valid non-zero data
+        if (x == 0.0 && y == 0.0 && z == 0.0) {
+            return 0.0;
+        }
+
         return Math.sqrt(x * x + y * y + z * z);
+    }
+
+    /**
+     * Calculates the shooter angle needed to hit the target.
+     * Uses the projectile motion formula: angle = (arcsin(R*g / v₀²)) / 2
+     * where:
+     *   R = distance to AprilTag (meters)
+     *   g = 9.81 m/s² (gravity)
+     *   v₀ = 5.2 m/s (launch velocity)
+     *
+     * @return Shooter angle in degrees, or 0.0 if no valid target or calculation error
+     */
+    public double getShooterAngle() {
+        double R = getDistanceToAprilTag();
+
+        if (R <= 0.0) {
+            return 0.0;
+        }
+
+        double g = 9.81; // m/s² (gravity)
+        double v0 = 5.2; // m/s (launch velocity)
+
+        // Calculate the ratio for arcsin: (R*g) / (v₀²)
+        double ratio = (R * g) / (v0 * v0);
+
+        // Check if ratio is valid for arcsin (must be between -1 and 1)
+        if (ratio > 1.0 || ratio < -1.0) {
+            // Distance is too far for the given velocity
+            return 0.0;
+        }
+
+        // Calculate angle: (arcsin(ratio)) / 2, then convert to degrees
+        double angleRadians = Math.asin(ratio) / 2.0;
+        double angleDegrees = Math.toDegrees(angleRadians);
+
+        return angleDegrees;
     }
 
     /**
@@ -327,7 +430,9 @@ public class VisionSubsystem extends SubsystemBase {
      * where velocity = 5.2 m/s
      *
      * @return Launch angle in degrees, or 0.0 if no valid target or calculation error
+     * @deprecated Use getShooterAngle() instead for projectile motion calculation
      */
+    @Deprecated
     public double getLaunchAngle() {
         double distance = getDistanceToAprilTag();
 
