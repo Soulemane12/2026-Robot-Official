@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
+import frc.robot.subsystems.BallCounterSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 
@@ -47,6 +48,7 @@ public class RobotContainer {
     private final SendableChooser<Command> autoChooser;
     // Vision subsystem with callback to update drivetrain odometry
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
+    private final BallCounterSubsystem m_ballCounter = new BallCounterSubsystem();
 
     // Store previous Limelight settings for restoration after vision alignment
     private int prevPipeline = 0;
@@ -123,6 +125,10 @@ public class RobotContainer {
             forwardStraight.withVelocityX(-0.5).withVelocityY(0))
         );
         joystick.x().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+
+        // Ball counter - press BACK button to reset count
+        // DISABLED - Uncomment when CANrange is working
+        joystick.rightTrigger().onTrue(m_ballCounter.runOnce(m_ballCounter::resetCount));
 
 
    /* 
