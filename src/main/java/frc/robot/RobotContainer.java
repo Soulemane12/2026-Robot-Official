@@ -61,7 +61,7 @@ public class RobotContainer {
         NamedCommands.registerCommand("p",
             new TrackHubCommand(drivetrain, m_visionSubsystem));
 
-        autoChooser = AutoBuilder.buildAutoChooser("New Auto");
+        autoChooser = AutoBuilder.buildAutoChooser("circle");
 
         configureBindings();
         FollowPathCommand.warmupCommand().schedule();
