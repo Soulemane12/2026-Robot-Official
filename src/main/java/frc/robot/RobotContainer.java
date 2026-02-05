@@ -22,6 +22,8 @@ import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.BallCounterSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
+import com.pathplanner.lib.auto.NamedCommands;
+import frc.robot.commands.TrackHubCommand;
 
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
@@ -55,6 +57,10 @@ public class RobotContainer {
     private int prevLedMode = 0;
 
     public RobotContainer() {
+        // Register named commands BEFORE building auto chooser
+        NamedCommands.registerCommand("p",
+            new TrackHubCommand(drivetrain, m_visionSubsystem));
+
         autoChooser = AutoBuilder.buildAutoChooser("New Auto");
 
         configureBindings();
