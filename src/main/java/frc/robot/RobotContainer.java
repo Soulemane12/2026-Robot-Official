@@ -20,6 +20,7 @@ import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.BallCounterSubsystem;
+import frc.robot.subsystems.ShooterSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
@@ -43,7 +44,8 @@ public class RobotContainer {
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
-    private final CommandXboxController joystick = new CommandXboxController(0);
+    private final CommandXboxController driver = new CommandXboxController(0);
+    private final CommandXboxController operator = new CommandXboxController(1);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
@@ -51,6 +53,7 @@ public class RobotContainer {
     // Vision subsystem with callback to update drivetrain odometry
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
     private final BallCounterSubsystem m_ballCounter = new BallCounterSubsystem();
+    private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR);
 
     // Store previous Limelight settings for restoration after vision alignment
     private int prevPipeline = 0;
@@ -72,7 +75,7 @@ public class RobotContainer {
         new Command() {
             @Override
             public void execute() {
-                double triggerValue = joystick.getLeftTriggerAxis();
+                double triggerValue = driver.getLeftTriggerAxis();
                 SmartDashboard.putNumber("Debug/LeftTriggerRaw", triggerValue);
                 SmartDashboard.putBoolean("Debug/TriggerAboveThreshold", triggerValue > 0.1);
             }
@@ -89,7 +92,7 @@ public class RobotContainer {
         // and Y is defined as to the left according to WPILib convention.
 
         // Default teleop drive command using the new teleopDrive method
-        drivetrain.setDefaultCommand(drivetrain.teleopDrive(joystick));
+        drivetrain.setDefaultCommand(drivetrain.teleopDrive(driver));
 
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
@@ -97,8 +100,8 @@ public class RobotContainer {
         );
 
         // Vision alignment - press LEFT TRIGGER (LT, not LB!) to toggle auto-rotate toward AprilTag
-        joystick.leftTrigger(0.1).toggleOnTrue(
-            drivetrain.visionAlignDrive(joystick, m_visionSubsystem)
+        driver.leftTrigger(0.1).toggleOnTrue(
+            drivetrain.visionAlignDrive(driver, m_visionSubsystem)
                 .beforeStarting(() -> {
                     drivetrain.resetAimLimiter();
 
@@ -119,32 +122,34 @@ public class RobotContainer {
                 })
         );
 
-        joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
-        joystick.b().whileTrue(drivetrain.applyRequest(() ->
-            point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
+        driver.a().whileTrue(drivetrain.applyRequest(() -> brake));
+        driver.b().whileTrue(drivetrain.applyRequest(() ->
+            point.withModuleDirection(new Rotation2d(-driver.getLeftY(), -driver.getLeftX()))
         ));
 
-        joystick.povUp().whileTrue(drivetrain.applyRequest(() ->
+        driver.povUp().whileTrue(drivetrain.applyRequest(() ->
             forwardStraight.withVelocityX(0.5).withVelocityY(0))
         );
-        joystick.povDown().whileTrue(drivetrain.applyRequest(() ->
+        driver.povDown().whileTrue(drivetrain.applyRequest(() ->
             forwardStraight.withVelocityX(-0.5).withVelocityY(0))
         );
-        joystick.x().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+        driver.x().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         // Ball counter - press BACK button to reset count
         // DISABLED - Uncomment when CANrange is working
-        joystick.rightTrigger().onTrue(m_ballCounter.runOnce(m_ballCounter::resetCount));
+        driver.rightTrigger().onTrue(m_ballCounter.runOnce(m_ballCounter::resetCount));
 
+        // Operator controls - Shooter toggle on A button
+        operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle));
 
-   /* 
+   /*
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
         joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
 */
-        
+
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }

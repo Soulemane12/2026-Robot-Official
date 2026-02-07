@@ -14,54 +14,39 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import frc.robot.generated.TunerConstants;
 
-/**
- * Constants for the robot.
- * Contains AprilTag alignment PID values, setpoints, and tolerances.
- */
 public final class Constants {
 
-    // AprilTag Alignment PID Constants
-    // TUNE THESE VALUES FOR YOUR ROBOT!
+    public static final class CANIds {
+        public static final int SHOOTER_MOTOR = 20;
+    }
 
-    // X-axis (forward/backward movement)
-    public static final double X_APRILTAG_ALIGNMENT_P = 2.0;  // Start with 2.0, tune as needed
-    public static final double X_SETPOINT_APRILTAG_ALIGNMENT = 1.5;  // Target distance in meters from tag
-    public static final double X_TOLERANCE_APRILTAG_ALIGNMENT = 0.05;  // 5cm tolerance
+    public static final double X_APRILTAG_ALIGNMENT_P = 2.0;
+    public static final double X_SETPOINT_APRILTAG_ALIGNMENT = 1.5;
+    public static final double X_TOLERANCE_APRILTAG_ALIGNMENT = 0.05;
 
-    // Y-axis (left/right strafe movement)
-    public static final double Y_APRILTAG_ALIGNMENT_P = 2.0;  // Start with 2.0, tune as needed
-    public static final double Y_SETPOINT_APRILTAG_ALIGNMENT = 0.0;  // Centered on tag
-    public static final double Y_TOLERANCE_APRILTAG_ALIGNMENT = 0.05;  // 5cm tolerance
+    public static final double Y_APRILTAG_ALIGNMENT_P = 2.0;
+    public static final double Y_SETPOINT_APRILTAG_ALIGNMENT = 0.0;
+    public static final double Y_TOLERANCE_APRILTAG_ALIGNMENT = 0.05;
 
-    // Rotation (turning to face tag)
-    public static final double ROT_APRILTAG_ALIGNMENT_P = 0.1;  // Start with 0.1, tune as needed
-    public static final double ROT_SETPOINT_APRILTAG_ALIGNMENT = 0.0;  // Face tag head-on (0 degrees)
-    public static final double ROT_TOLERANCE_APRILTAG_ALIGNMENT = 2.0;  // 2 degree tolerance
+    public static final double ROT_APRILTAG_ALIGNMENT_P = 0.1;
+    public static final double ROT_SETPOINT_APRILTAG_ALIGNMENT = 0.0;
+    public static final double ROT_TOLERANCE_APRILTAG_ALIGNMENT = 2.0;
 
-    // Timing constants
-    public static final double DONT_SEE_TAG_WAIT_TIME = 1.0;  // Stop if tag lost for 1 second
-    public static final double POSE_VALIDATION_TIME = 0.3;  // Must be aligned for 0.3 seconds to finish
+    public static final double DONT_SEE_TAG_WAIT_TIME = 1.0;
+    public static final double POSE_VALIDATION_TIME = 0.3;
 
-    /**
-     * Drive constants for hub alignment and robot control.
-     * Contains hub positions, PID configuration, and alignment geometry.
-     */
     public static final class DriveConstants {
-        // Maximum speeds
         public static final double maxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
         public static final double maxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
 
-        // Shooter offset for alignment geometry (6 inches to the side of robot center)
         public static final Distance shooterSideOffset = Inches.of(6.0);
 
-        // Transform from robot center to shooter position
         public static final Transform2d shooterTransform = new Transform2d(
             Inches.of(0.0),
             shooterSideOffset,
             new Rotation2d()
         );
 
-        // Field hub positions (adjust these to match your field specifications)
         public static final Pose3d redHubPose = new Pose3d(
             Inches.of(468.56),
             Inches.of(158.32),
@@ -76,17 +61,12 @@ public final class Constants {
             new Rotation3d()
         );
 
-        /**
-         * Gets the hub pose for the current alliance.
-         * @return The hub pose for red or blue alliance
-         */
         public static Pose3d getHubPose() {
             return DriverStation.getAlliance().equals(Optional.of(Alliance.Red))
                 ? redHubPose
                 : blueHubPose;
         }
 
-        // PID controller for rotation alignment
         public static final PIDController rotationController = getRotationController();
 
         private static PIDController getRotationController() {
@@ -95,15 +75,11 @@ public final class Constants {
             return controller;
         }
 
-        // PID controller for vision alignment (Limelight TX -> rotation)
         public static final PIDController visionRotationController = getVisionRotationController();
 
         private static PIDController getVisionRotationController() {
-            // TX is in degrees, output is angular velocity multiplier (0-1 range)
-            // kP = 0.1 means 10 degree error = 1.0 (full speed rotation)
-            // This gets multiplied by maxAngularRate later
             PIDController controller = new PIDController(0.1, 0.0, 0.005);
-            controller.setTolerance(1.0); // 1 degree tolerance
+            controller.setTolerance(1.0);
             return controller;
         }
     }
