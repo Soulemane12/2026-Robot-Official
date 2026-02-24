@@ -21,6 +21,7 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.BallCounterSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
+import frc.robot.subsystems.IntakeSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
@@ -54,6 +55,7 @@ public class RobotContainer {
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
     private final BallCounterSubsystem m_ballCounter = new BallCounterSubsystem();
     private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR);
+    private final IntakeSubsystem m_intake = new IntakeSubsystem();
 
     // Store previous Limelight settings for restoration after vision alignment
     private int prevPipeline = 0;
@@ -141,6 +143,21 @@ public class RobotContainer {
 
         // Operator controls - Shooter toggle on A button
         operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle));
+
+        // Intake controls - Calibration and position control
+        operator.x().onTrue(m_intake.runOnce(m_intake::zero));
+
+        operator.rightBumper()
+            .whileTrue(m_intake.run(() -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE)))
+            .onFalse(m_intake.runOnce(m_intake::stop));
+
+        operator.leftBumper()
+            .whileTrue(m_intake.run(() -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE)))
+            .onFalse(m_intake.runOnce(m_intake::stop));
+
+        operator.x().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
+        operator.b().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
+        operator.y().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
 
    /*
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
