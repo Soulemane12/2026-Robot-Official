@@ -54,7 +54,7 @@ public class RobotContainer {
     // Vision subsystem with callback to update drivetrain odometry
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
     private final BallCounterSubsystem m_ballCounter = new BallCounterSubsystem();
-    private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR);
+    // private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR); // TODO: uncomment when motor is on robot
     private final IntakeSubsystem m_intake = new IntakeSubsystem();
 
     // Store previous Limelight settings for restoration after vision alignment
@@ -142,7 +142,7 @@ public class RobotContainer {
         driver.rightTrigger().onTrue(m_ballCounter.runOnce(m_ballCounter::resetCount));
 
         // Operator controls - Shooter toggle on A button
-        operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle));
+        // operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle)); // TODO: uncomment when motor is on robot
 
         // Intake controls - Calibration and position control
         operator.back().onTrue(m_intake.runOnce(m_intake::zero));

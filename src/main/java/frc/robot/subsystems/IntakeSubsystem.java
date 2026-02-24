@@ -19,7 +19,7 @@ public class IntakeSubsystem extends SubsystemBase {
     private double m_targetRotations = 0.0;
 
     public IntakeSubsystem() {
-        m_motor = new TalonFX(Constants.CANIds.INTAKE_PIVOT);
+        m_motor = new TalonFX(Constants.CANIds.INTAKE_PIVOT, frc.robot.generated.TunerConstants.kCANBus);
 
         TalonFXConfiguration config = new TalonFXConfiguration();
 
