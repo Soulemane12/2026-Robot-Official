@@ -145,7 +145,7 @@ public class RobotContainer {
         // operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle)); // TODO: uncomment when motor is on robot
 
         // Intake controls - Calibration and position control
-        operator.back().onTrue(m_intake.runOnce(m_intake::zero));
+        operator.rightTrigger().onTrue(m_intake.runOnce(m_intake::zero));
 
         operator.rightBumper().whileTrue(
             m_intake.startEnd(
