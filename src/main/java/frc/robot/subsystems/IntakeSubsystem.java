@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
@@ -22,6 +23,16 @@ public class IntakeSubsystem extends SubsystemBase {
         m_motor = new TalonFX(Constants.CANIds.INTAKE_PIVOT, frc.robot.generated.TunerConstants.kCANBus);
 
         TalonFXConfiguration config = new TalonFXConfiguration();
+
+        // Slot0 PID gains for MotionMagic — tune these on the real robot
+        Slot0Configs slot0 = new Slot0Configs()
+            .withKP(24.0)   // Proportional gain (volts per rotation of error)
+            .withKI(0.0)    // Integral gain
+            .withKD(0.1)    // Derivative gain
+            .withKS(0.25)   // Static feedforward (volts to overcome friction)
+            .withKV(0.12)   // Velocity feedforward (volts per rotation per second)
+            .withKA(0.0);   // Acceleration feedforward
+        config.Slot0 = slot0;
 
         MotionMagicConfigs mmConfig = new MotionMagicConfigs()
             .withMotionMagicCruiseVelocity(20.0)

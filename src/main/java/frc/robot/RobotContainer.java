@@ -161,9 +161,9 @@ public class RobotContainer {
             )
         );
 
-        operator.x().whileTrue(m_intake.run(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
-        operator.b().whileTrue(m_intake.run(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
-        operator.y().whileTrue(m_intake.run(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
+        operator.x().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
+        operator.b().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
+        operator.y().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
 
    /*
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
