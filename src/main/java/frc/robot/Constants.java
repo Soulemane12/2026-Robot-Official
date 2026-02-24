@@ -131,31 +131,5 @@ public final class Constants {
      * Limelight vision constants.
      * Contains network table name, mounting position, and camera properties.
      */
-    public static final class VisionConstants {
-        // Limelight network table name
-        public static final String LIMELIGHT_NAME = "limelight";
-        // Static IP for Limelight (default 10.TE.AM.11 based on team number)
-        public static final String LIMELIGHT_IP = "10.45.71.11";
-
-        // Target AprilTag ID for auto vision tracking
-        public static final int TARGET_APRILTAG_ID = 11;
-
-        // Camera mounting position relative to robot center
-        // Front center of the robot
-        public static final Transform3d ROBOT_TO_CAMERA = new Transform3d(
-            new Translation3d(
-                Inches.of(12.0),  // 12 inches forward from robot center
-                Inches.of(0.0),   // Centered left/right
-                Inches.of(24.0)   // 24 inches up from ground
-            ),
-            new Rotation3d(0, Math.toRadians(-20), 0) // Tilted down 20 degrees
-        );
-
-        // Camera properties for simulation
-        public static final double HORIZONTAL_FOV_DEGREES = 59.6; // Limelight 2/3 horizontal FOV
-        public static final double VERTICAL_FOV_DEGREES = 49.7;   // Limelight 2/3 vertical FOV
-        public static final int CAMERA_RESOLUTION_WIDTH = 960;
-        public static final int CAMERA_RESOLUTION_HEIGHT = 720;
-        public static final double MAX_LED_RANGE_METERS = 10.0;  // Maximum effective range
-    }
+    
 }

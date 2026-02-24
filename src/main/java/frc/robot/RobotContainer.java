@@ -145,15 +145,21 @@ public class RobotContainer {
         operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle));
 
         // Intake controls - Calibration and position control
-        operator.x().onTrue(m_intake.runOnce(m_intake::zero));
+        operator.back().onTrue(m_intake.runOnce(m_intake::zero));
 
-        operator.rightBumper()
-            .whileTrue(m_intake.run(() -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE)))
-            .onFalse(m_intake.runOnce(m_intake::stop));
+        operator.rightBumper().whileTrue(
+            m_intake.startEnd(
+                () -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE),
+                m_intake::stop
+            )
+        );
 
-        operator.leftBumper()
-            .whileTrue(m_intake.run(() -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE)))
-            .onFalse(m_intake.runOnce(m_intake::stop));
+        operator.leftBumper().whileTrue(
+            m_intake.startEnd(
+                () -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE),
+                m_intake::stop
+            )
+        );
 
         operator.x().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
         operator.b().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
