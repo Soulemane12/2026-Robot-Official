@@ -3,11 +3,8 @@ package frc.robot.subsystems;
 import java.util.function.BiConsumer;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
-import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
@@ -34,8 +31,6 @@ public class VisionSubsystem extends SubsystemBase {
     // Launch velocity constant (meters per second)
     private static final double LAUNCH_VELOCITY = 5.2;
 
-    private int debugCounter = 0;
-    private final ShuffleboardTab limelightTab;
     private final BiConsumer<Pose2d, Double> visionUpdater;
 
     /**
@@ -54,24 +49,6 @@ public class VisionSubsystem extends SubsystemBase {
      */
     public VisionSubsystem(BiConsumer<Pose2d, Double> visionUpdater) {
         this.visionUpdater = visionUpdater;
-        // Create Shuffleboard tab for Limelight data
-        limelightTab = Shuffleboard.getTab("Limelight");
-
-        // Add distance and angle entries to Shuffleboard
-        limelightTab.addNumber("Distance to AprilTag (m)", this::getDistanceToAprilTag)
-            .withPosition(0, 0)
-            .withSize(2, 1);
-
-        limelightTab.addNumber("Shooter Angle (degrees)", this::getShooterAngle)
-            .withPosition(0, 1)
-            .withSize(2, 1);
-
-        System.out.println("===========================================");
-        System.out.println("VisionSubsystem initialized");
-        System.out.println("Looking for Limelight with name: \"" + LIMELIGHT_NAME + "\"");
-        System.out.println("If this is wrong, change LIMELIGHT_NAME in VisionSubsystem.java");
-        System.out.println("To find your Limelight name: go to http://limelight.local:5801");
-        System.out.println("===========================================");
     }
 
     @Override
@@ -79,121 +56,8 @@ public class VisionSubsystem extends SubsystemBase {
         // Update drivetrain with vision measurements if callback provided
         addLatestEstimate();
 
-        // Get raw NetworkTable values for debugging
-        NetworkTable table = NetworkTableInstance.getDefault().getTable(LIMELIGHT_NAME);
-        double tv = table.getEntry("tv").getDouble(-999);
-        double tx = table.getEntry("tx").getDouble(-999);
-        double ty = table.getEntry("ty").getDouble(-999);
-        double ta = table.getEntry("ta").getDouble(-999);
-        double tid = table.getEntry("tid").getDouble(-999);
-        double pipeline = table.getEntry("getpipe").getDouble(-999);
-
-        // Publish vision data to SmartDashboard for debugging
-        SmartDashboard.putString("Vision/LimelightName", LIMELIGHT_NAME);
-        SmartDashboard.putNumber("Vision/TV_Raw", tv);
-        SmartDashboard.putNumber("Vision/TX", tx);
-        SmartDashboard.putNumber("Vision/TY", ty);
-        SmartDashboard.putNumber("Vision/TA", ta);
         SmartDashboard.putBoolean("Vision/HasTarget", hasValidTarget());
-        SmartDashboard.putNumber("Vision/TagID", tid);
-        SmartDashboard.putNumber("Vision/Pipeline", pipeline);
-
-        // Publish distance and angle calculations
-        double distance = getDistanceToAprilTag();
-        SmartDashboard.putNumber("Vision/Distance_to_AprilTag_m", distance);
-        SmartDashboard.putNumber("Vision/Shooter_Angle_deg", getShooterAngle());
-
-        // Debug 3D pose data
-        double[] targetPose = NetworkTableInstance.getDefault()
-            .getTable(LIMELIGHT_NAME)
-            .getEntry("targetpose_cameraspace")
-            .getDoubleArray(new double[6]);
-
-        SmartDashboard.putNumber("Vision/Debug_TargetPose_Length", targetPose.length);
-        if (targetPose.length >= 3) {
-            SmartDashboard.putNumber("Vision/Debug_TargetPose_X", targetPose[0]);
-            SmartDashboard.putNumber("Vision/Debug_TargetPose_Y", targetPose[1]);
-            SmartDashboard.putNumber("Vision/Debug_TargetPose_Z", targetPose[2]);
-        }
-
-        double[] pose3d = get3DPose();
-        SmartDashboard.putNumber("Vision/Debug_CamTran_Length", pose3d.length);
-        if (pose3d.length >= 3) {
-            SmartDashboard.putNumber("Vision/Debug_CamTran_X", pose3d[0]);
-            SmartDashboard.putNumber("Vision/Debug_CamTran_Y", pose3d[1]);
-            SmartDashboard.putNumber("Vision/Debug_CamTran_Z", pose3d[2]);
-        }
-
-        // Publish vision pose estimate info
-        PoseEstimate estimate = getPoseMT1();
-        if (estimate != null && estimate.pose != null) {
-            SmartDashboard.putNumber("Vision/PoseEstimate_X", estimate.pose.getX());
-            SmartDashboard.putNumber("Vision/PoseEstimate_Y", estimate.pose.getY());
-            SmartDashboard.putNumber("Vision/PoseEstimate_Rotation", estimate.pose.getRotation().getDegrees());
-            SmartDashboard.putNumber("Vision/TagCount", estimate.tagCount);
-            SmartDashboard.putNumber("Vision/Latency_ms", estimate.timestampSeconds * 1000);
-        }
-
-        // Print debug info every 50 cycles (about once per second)
-        debugCounter++;
-        if (debugCounter >= 50) {
-            debugCounter = 0;
-            System.out.println("--- Limelight Debug [" + LIMELIGHT_NAME + "] ---");
-            System.out.println("  TV (valid target): " + tv + (tv == -999 ? " <-- NOT CONNECTED!" : (tv == 1 ? " (TARGET FOUND)" : " (no target)")));
-            System.out.println("  TX: " + tx + ", TY: " + ty + ", TA: " + ta);
-            System.out.println("  Tag ID: " + tid);
-            System.out.println("  Pipeline: " + pipeline);
-
-            if (tv == -999 || tx == -999) {
-                System.out.println("  WARNING: Limelight \"" + LIMELIGHT_NAME + "\" not found in NetworkTables!");
-                System.out.println("  Check if the name matches your Limelight's hostname.");
-                printAvailableLimelights();
-            }
-        }
-    }
-
-    /**
-     * Prints available Limelight tables in NetworkTables to help debug naming issues.
-     */
-    private void printAvailableLimelights() {
-        System.out.println("  Searching for ALL Limelight tables...");
-
-        // Try many common Limelight names
-        String[] tables = {
-            "limelight", "limelight-",
-            "limelight-front", "limelight-back",
-            "limelight-left", "limelight-right",
-            "limelight-a", "limelight-b", "limelight-c",
-            "limelight-top", "limelight-bottom"
-        };
-
-        boolean foundAny = false;
-        for (String name : tables) {
-            NetworkTable t = NetworkTableInstance.getDefault().getTable(name);
-            double testTv = t.getEntry("tv").getDouble(-999);
-            if (testTv != -999) {
-                System.out.println("  >>> FOUND: \"" + name + "\" has data! (tv=" + testTv + ")");
-                foundAny = true;
-            }
-        }
-
-        if (!foundAny) {
-            System.out.println("  !!! NO LIMELIGHT TABLES FOUND IN NETWORKTABLES !!!");
-            System.out.println("  This is a NETWORK issue, not a naming issue!");
-            System.out.println("  Check:");
-            System.out.println("    1. Is Limelight connected to the robot network?");
-            System.out.println("    2. Is Team Number set correctly in Limelight? (Settings tab)");
-            System.out.println("    3. Does Limelight have a static IP like 10.TE.AM.11?");
-            System.out.println("    4. Can you ping the Limelight from the RoboRIO?");
-        }
-
-        // Also print all top-level NetworkTables to help debug
-        System.out.println("  --- All NetworkTables (looking for limelight*): ---");
-        for (String key : NetworkTableInstance.getDefault().getTable("").getSubTables()) {
-            if (key.toLowerCase().contains("lime")) {
-                System.out.println("  >>> TABLE FOUND: \"" + key + "\"");
-            }
-        }
+        SmartDashboard.putNumber("Vision/Distance_m", getDistanceToAprilTag());
     }
 
     /**

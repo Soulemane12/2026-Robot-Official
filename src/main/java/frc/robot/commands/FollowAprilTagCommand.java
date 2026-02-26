@@ -92,20 +92,13 @@ public class FollowAprilTagCommand extends Command {
         this(vision, swerve, 0.0, 0.0);
     }
 
-    private int debugCounter = 0;
-
     @Override
     public void initialize() {
-        System.out.println("===========================================");
-        System.out.println("FollowAprilTagCommand started - looking for AprilTag...");
-        System.out.println("Using Limelight: \"" + m_vision.getLimelightName() + "\"");
-        System.out.println("===========================================");
         lostTargetTimer.reset();
         lostTargetTimer.start();
         lastValidTX = 0.0;
         lastValidTY = 0.0;
         lastStrafeAdjust = 0.0;
-        debugCounter = 0;
     }
 
     @Override
@@ -116,22 +109,6 @@ public class FollowAprilTagCommand extends Command {
         double currentTA = m_vision.getTargetArea();
         double tagID = m_vision.getTagID();
         boolean hasTarget = m_vision.hasValidTarget();
-
-        // Debug output every 25 cycles (about twice per second)
-        debugCounter++;
-        if (debugCounter >= 25) {
-            debugCounter = 0;
-            System.out.println("--- FollowAprilTag Debug ---");
-            System.out.println("  hasTarget: " + hasTarget);
-            System.out.println("  TX: " + currentTX + ", TY: " + currentTY + ", TA: " + currentTA);
-            System.out.println("  Tag ID: " + tagID);
-            if (!hasTarget) {
-                System.out.println("  >>> NO TARGET DETECTED! Check:");
-                System.out.println("      1. Is Limelight name correct? Using: \"" + m_vision.getLimelightName() + "\"");
-                System.out.println("      2. Is Limelight in AprilTag pipeline mode?");
-                System.out.println("      3. Is there an AprilTag visible to the camera?");
-            }
-        }
 
         // Handle lost target - use last valid values for a short time
         if (hasTarget && (currentTX != 0.0 || currentTY != 0.0)) {
@@ -195,8 +172,6 @@ public class FollowAprilTagCommand extends Command {
 
     @Override
     public void end(boolean interrupted) {
-        System.out.println("FollowAprilTagCommand ended" + (interrupted ? " (interrupted)" : ""));
-
         // Stop the robot
         m_swerve.setControl(
             m_driveRequest

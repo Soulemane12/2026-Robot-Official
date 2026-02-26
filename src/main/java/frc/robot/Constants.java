@@ -24,13 +24,15 @@ public final class Constants {
     public static final class CANIds {
         public static final int SHOOTER_MOTOR = 20;
         public static final int INTAKE_PIVOT= 31;
+        public static final int INTAKE_ROLLER = 32;
     }
 
     public static final class IntakeConstants {
         public static final double STOW = 0.0;
-        public static final double INTAKE_POSITION = 12.35;
-        public static final double EXTENDED = 28.10;
-        public static final double JOG_VOLTAGE = 2.0;
+        public static final double INTAKE_POSITION = 84;
+        public static final double EXTENDED = 84;
+        public static final double JOG_VOLTAGE = 4;
+        public static final double ROLLER_VOLTAGE = 8.0;
     }
 
     // AprilTag Alignment PID Constants

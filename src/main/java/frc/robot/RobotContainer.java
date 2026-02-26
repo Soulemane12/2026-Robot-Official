@@ -19,9 +19,10 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.subsystems.BallCounterSubsystem;
+
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.IntakeRollerSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
@@ -53,9 +54,10 @@ public class RobotContainer {
     private final SendableChooser<Command> autoChooser;
     // Vision subsystem with callback to update drivetrain odometry
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
-    private final BallCounterSubsystem m_ballCounter = new BallCounterSubsystem();
+
     // private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR); // TODO: uncomment when motor is on robot
     private final IntakeSubsystem m_intake = new IntakeSubsystem();
+    private final IntakeRollerSubsystem m_intakeRoller = new IntakeRollerSubsystem();
 
     // Store previous Limelight settings for restoration after vision alignment
     private int prevPipeline = 0;
@@ -72,21 +74,6 @@ public class RobotContainer {
         FollowPathCommand.warmupCommand().schedule();
 
         SmartDashboard.putData("Auto Mode", autoChooser);
-
-        // Continuous monitoring of trigger for debugging - schedule it to run always
-        new Command() {
-            @Override
-            public void execute() {
-                double triggerValue = driver.getLeftTriggerAxis();
-                SmartDashboard.putNumber("Debug/LeftTriggerRaw", triggerValue);
-                SmartDashboard.putBoolean("Debug/TriggerAboveThreshold", triggerValue > 0.1);
-            }
-
-            @Override
-            public boolean runsWhenDisabled() {
-                return true;
-            }
-        }.ignoringDisable(true).schedule();
     }
 
     private void configureBindings() {
@@ -137,15 +124,11 @@ public class RobotContainer {
         );
         driver.x().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
-        // Ball counter - press BACK button to reset count
-        // DISABLED - Uncomment when CANrange is working
-        driver.rightTrigger().onTrue(m_ballCounter.runOnce(m_ballCounter::resetCount));
-
         // Operator controls - Shooter toggle on A button
         // operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle)); // TODO: uncomment when motor is on robot
 
         // Intake controls - Calibration and position control
-        operator.rightTrigger().onTrue(m_intake.runOnce(m_intake::zero));
+        operator.a().onTrue(m_intake.runOnce(m_intake::zero));
 
         operator.rightBumper().whileTrue(
             m_intake.startEnd(
@@ -161,8 +144,10 @@ public class RobotContainer {
             )
         );
 
-        operator.x().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
-        operator.b().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
+        operator.x().onTrue(m_intakeRoller.runOnce(m_intakeRoller::toggle));
+
+        operator.rightTrigger().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
+        operator.leftTrigger().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
         operator.y().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
 
    /*

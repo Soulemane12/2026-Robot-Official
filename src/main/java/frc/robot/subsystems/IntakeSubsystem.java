@@ -26,21 +26,24 @@ public class IntakeSubsystem extends SubsystemBase {
 
         // Slot0 PID gains for MotionMagic — tune these on the real robot
         Slot0Configs slot0 = new Slot0Configs()
-            .withKP(24.0)   // Proportional gain (volts per rotation of error)
+            .withKP(2.0)    // Proportional gain (lowered to reduce harshness)
             .withKI(0.0)    // Integral gain
-            .withKD(0.1)    // Derivative gain
+            .withKD(0.02)   // Derivative gain
             .withKS(0.25)   // Static feedforward (volts to overcome friction)
-            .withKV(0.12)   // Velocity feedforward (volts per rotation per second)
-            .withKA(0.0);   // Acceleration feedforward
+            .withKV(0.18)   // Velocity feedforward (increased so feedforward does more work)
+            .withKA(0.01);  // Acceleration feedforward
         config.Slot0 = slot0;
 
         MotionMagicConfigs mmConfig = new MotionMagicConfigs()
-            .withMotionMagicCruiseVelocity(20.0)
-            .withMotionMagicAcceleration(60.0)
-            .withMotionMagicJerk(0.0);
+            .withMotionMagicCruiseVelocity(140.0)
+            .withMotionMagicAcceleration(280.0)
+            .withMotionMagicJerk(1400.0);
         config.MotionMagic = mmConfig;
 
         m_motor.getConfigurator().apply(config);
+
+        // Zero the encoder on startup so current position becomes 0
+        m_motor.setPosition(0.0);
     }
 
     @Override
