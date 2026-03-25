@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
@@ -8,22 +9,14 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class ShooterSubsystem extends SubsystemBase {
     private final TalonFX m_shooterMotor;
+    private final VoltageOut m_voltageOut = new VoltageOut(0.0);
     private boolean m_isRunning = false;
 
-    // Full speed (100% duty cycle)
-    private static final double SHOOTER_SPEED = 1.0;
+    private static final double SHOOTER_VOLTAGE = 12.0; // tune
 
     public ShooterSubsystem(int motorCanId) {
-        m_shooterMotor = new TalonFX(motorCanId);
-
-        // Configure motor
+        m_shooterMotor = new TalonFX(motorCanId, frc.robot.generated.TunerConstants.kCANBus);
         m_shooterMotor.setNeutralMode(NeutralModeValue.Coast);
-
-        // Optional: Set current limit to protect motor
-        // var currentLimits = new CurrentLimitsConfigs();
-        // currentLimits.StatorCurrentLimit = 80;
-        // currentLimits.StatorCurrentLimitEnable = true;
-        // m_shooterMotor.getConfigurator().apply(currentLimits);
     }
 
     @Override
@@ -49,7 +42,7 @@ public class ShooterSubsystem extends SubsystemBase {
      * Start the shooter at full speed
      */
     public void start() {
-        m_shooterMotor.set(SHOOTER_SPEED);
+        m_shooterMotor.setControl(m_voltageOut.withOutput(SHOOTER_VOLTAGE));
         m_isRunning = true;
     }
 
@@ -57,7 +50,7 @@ public class ShooterSubsystem extends SubsystemBase {
      * Stop the shooter
      */
     public void stop() {
-        m_shooterMotor.set(0);
+        m_shooterMotor.setControl(m_voltageOut.withOutput(0.0));
         m_isRunning = false;
     }
 

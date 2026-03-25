@@ -13,6 +13,8 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 
@@ -21,8 +23,11 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
 
 import frc.robot.subsystems.ShooterSubsystem;
-import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.IntakePivotSubsystem;
 import frc.robot.subsystems.IntakeRollerSubsystem;
+import frc.robot.subsystems.TurretSubsystem;
+import frc.robot.subsystems.ShooterAngleSubsystem;
+import frc.robot.subsystems.RollerToShooterSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
@@ -55,9 +60,12 @@ public class RobotContainer {
     // Vision subsystem with callback to update drivetrain odometry
     private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
 
-    // private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR); // TODO: uncomment when motor is on robot
-    private final IntakeSubsystem m_intake = new IntakeSubsystem();
+    private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR);
+    private final IntakePivotSubsystem m_intake = new IntakePivotSubsystem();
     private final IntakeRollerSubsystem m_intakeRoller = new IntakeRollerSubsystem();
+    private final TurretSubsystem m_turret = new TurretSubsystem();
+    private final ShooterAngleSubsystem m_shooterAngle = new ShooterAngleSubsystem();
+    private final RollerToShooterSubsystem m_rollerToShooter = new RollerToShooterSubsystem();
 
     // Store previous Limelight settings for restoration after vision alignment
     private int prevPipeline = 0;
@@ -67,8 +75,33 @@ public class RobotContainer {
         // Register named commands BEFORE building auto chooser
         NamedCommands.registerCommand("p",
             new TrackHubCommand(drivetrain, m_visionSubsystem));
+        NamedCommands.registerCommand("shooterOn",
+            m_shooter.runOnce(m_shooter::start));
+        NamedCommands.registerCommand("shooterOff",
+            m_shooter.runOnce(m_shooter::stop));
+        NamedCommands.registerCommand("rollerOn",
+            m_rollerToShooter.runOnce(m_rollerToShooter::start));
+        NamedCommands.registerCommand("rollerOff",
+            m_rollerToShooter.runOnce(m_rollerToShooter::stop));
 
-        autoChooser = AutoBuilder.buildAutoChooser("circle");
+        autoChooser = AutoBuilder.buildAutoChooser("");
+        autoChooser.setDefaultOption("None", Commands.none());
+        autoChooser.addOption("Shoot 3 Balls", Commands.sequence(
+            m_shooter.runOnce(m_shooter::start),
+            new WaitCommand(1.5),
+            m_rollerToShooter.runOnce(m_rollerToShooter::start),
+            new WaitCommand(0.5),
+            m_rollerToShooter.runOnce(m_rollerToShooter::stop),
+            new WaitCommand(0.3),
+            m_rollerToShooter.runOnce(m_rollerToShooter::start),
+            new WaitCommand(0.5),
+            m_rollerToShooter.runOnce(m_rollerToShooter::stop),
+            new WaitCommand(0.3),
+            m_rollerToShooter.runOnce(m_rollerToShooter::start),
+            new WaitCommand(0.5),
+            m_rollerToShooter.runOnce(m_rollerToShooter::stop),
+            m_shooter.runOnce(m_shooter::stop)
+        ));
 
         configureBindings();
         FollowPathCommand.warmupCommand().schedule();
@@ -125,30 +158,47 @@ public class RobotContainer {
         driver.x().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         // Operator controls - Shooter toggle on A button
-        // operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle)); // TODO: uncomment when motor is on robot
+        operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle));
 
         // Intake controls - Calibration and position control
-        operator.a().onTrue(m_intake.runOnce(m_intake::zero));
+        driver.a().onTrue(m_intake.runOnce(m_intake::zero));
 
         operator.rightBumper().whileTrue(
-            m_intake.startEnd(
-                () -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE),
-                m_intake::stop
-            )
-        );
-
-        operator.leftBumper().whileTrue(
             m_intake.startEnd(
                 () -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE),
                 m_intake::stop
             )
         );
 
+        operator.leftBumper().whileTrue(
+            m_intake.startEnd(
+                () -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE),
+                m_intake::stop
+            )
+        );
+
         operator.x().onTrue(m_intakeRoller.runOnce(m_intakeRoller::toggle));
+        operator.b().onTrue(m_rollerToShooter.runOnce(m_rollerToShooter::toggle));
 
         operator.rightTrigger().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
         operator.leftTrigger().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
         operator.y().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
+
+        // Toggle intake pivot limits on/off
+        operator.povUp().onTrue(m_intake.runOnce(m_intake::toggleLimits));
+
+        // Shooter angle — left stick Y for manual jog (up = raise, negate because stick up = negative Y)
+        m_shooterAngle.setDefaultCommand(m_shooterAngle.run(
+            () -> m_shooterAngle.jogVolts(-operator.getLeftY() * Constants.ShooterAngleConstants.JOG_VOLTAGE)
+        ));
+
+        // Turret — right stick X for manual jog, D-pad presets
+        m_turret.setDefaultCommand(m_turret.run(
+            () -> m_turret.jogVolts(operator.getRightX() * Constants.TurretConstants.JOG_VOLTAGE)
+        ));
+        operator.povLeft().onTrue(m_turret.runOnce(() -> m_turret.setAngleDeg(-90)));
+        operator.povRight().onTrue(m_turret.runOnce(() -> m_turret.setAngleDeg(90)));
+        operator.povDown().onTrue(m_turret.runOnce(() -> m_turret.setAngleDeg(0)));
 
    /*
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));

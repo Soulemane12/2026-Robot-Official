@@ -11,15 +11,16 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 
-public class IntakeSubsystem extends SubsystemBase {
+public class IntakePivotSubsystem extends SubsystemBase {
     private final TalonFX m_motor;
 
     private final MotionMagicVoltage m_motionMagic = new MotionMagicVoltage(0.0);
     private final VoltageOut m_voltageOut = new VoltageOut(0.0);
 
     private double m_targetRotations = 0.0;
+    private boolean m_limitsEnabled = true;
 
-    public IntakeSubsystem() {
+    public IntakePivotSubsystem() {
         m_motor = new TalonFX(Constants.CANIds.INTAKE_PIVOT, frc.robot.generated.TunerConstants.kCANBus);
 
         TalonFXConfiguration config = new TalonFXConfiguration();
@@ -35,9 +36,9 @@ public class IntakeSubsystem extends SubsystemBase {
         config.Slot0 = slot0;
 
         MotionMagicConfigs mmConfig = new MotionMagicConfigs()
-            .withMotionMagicCruiseVelocity(140.0)
-            .withMotionMagicAcceleration(280.0)
-            .withMotionMagicJerk(1400.0);
+            .withMotionMagicCruiseVelocity(35.0)
+            .withMotionMagicAcceleration(70.0)
+            .withMotionMagicJerk(350.0);
         config.MotionMagic = mmConfig;
 
         m_motor.getConfigurator().apply(config);
@@ -48,9 +49,22 @@ public class IntakeSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
+        if (m_limitsEnabled) {
+            // If the pivot has gone below the lower limit and is still moving backwards, stop it
+            if (getPositionRotations() <= 0.67 && getVelocityRPS() < 0.0) {
+                stop();
+            }
+
+            // If the pivot has gone above the upper limit and is still moving forwards, stop it
+            if (getPositionRotations() >= 101 && getVelocityRPS() > 0.0) {
+                stop();
+            }
+        }
+
         SmartDashboard.putNumber("Intake/PosRot", getPositionRotations());
         SmartDashboard.putNumber("Intake/TargetRot", m_targetRotations);
         SmartDashboard.putNumber("Intake/VelocityRPS", getVelocityRPS());
+        SmartDashboard.putBoolean("Intake/LimitsEnabled", m_limitsEnabled);
     }
 
     public void zero() {
@@ -58,12 +72,30 @@ public class IntakeSubsystem extends SubsystemBase {
         m_targetRotations = 0.0;
     }
 
+    public void toggleLimits() {
+        m_limitsEnabled = !m_limitsEnabled;
+    }
+
     public void goTo(double rotations) {
-        m_targetRotations = rotations;
-        m_motor.setControl(m_motionMagic.withPosition(rotations));
+        if (m_limitsEnabled) {
+            m_targetRotations = Math.max(0.67, Math.min(101.0, rotations));
+        } else {
+            m_targetRotations = rotations;
+        }
+        m_motor.setControl(m_motionMagic.withPosition(m_targetRotations));
     }
 
     public void jogVolts(double volts) {
+        if (m_limitsEnabled) {
+            if (volts < 0.0 && getPositionRotations() <= 0.67) {
+                stop();
+                return;
+            }
+            if (volts > 0.0 && getPositionRotations() >= 101) {
+                stop();
+                return;
+            }
+        }
         m_motor.setControl(m_voltageOut.withOutput(volts));
     }
 
