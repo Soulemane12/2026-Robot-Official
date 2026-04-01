@@ -28,8 +28,8 @@ public class ShooterAngleSubsystem extends SubsystemBase {
         cfg.CurrentLimits.StatorCurrentLimit = Constants.ShooterAngleConstants.STATOR_LIMIT_A;
         cfg.CurrentLimits.SupplyCurrentLimitEnable = true;
         cfg.CurrentLimits.SupplyCurrentLimit = Constants.ShooterAngleConstants.SUPPLY_LIMIT_A;
-        cfg.CurrentLimits.SupplyCurrentThreshold = Constants.ShooterAngleConstants.SUPPLY_THRESHOLD_A;
-        cfg.CurrentLimits.SupplyTimeThreshold = Constants.ShooterAngleConstants.SUPPLY_TIME_S;
+        cfg.CurrentLimits.SupplyCurrentLowerLimit  = Constants.ShooterAngleConstants.SUPPLY_THRESHOLD_A;
+        cfg.CurrentLimits.SupplyCurrentLowerTime   = Constants.ShooterAngleConstants.SUPPLY_TIME_S;
 
         cfg.Slot0.kP = Constants.ShooterAngleConstants.kP;
         cfg.Slot0.kD = Constants.ShooterAngleConstants.kD;

@@ -39,8 +39,8 @@ public class TurretSubsystem extends SubsystemBase {
         cfg.CurrentLimits.StatorCurrentLimit = Constants.TurretConstants.STATOR_LIMIT_A;
         cfg.CurrentLimits.SupplyCurrentLimitEnable = true;
         cfg.CurrentLimits.SupplyCurrentLimit = Constants.TurretConstants.SUPPLY_LIMIT_A;
-        cfg.CurrentLimits.SupplyCurrentThreshold = Constants.TurretConstants.SUPPLY_THRESHOLD_A;
-        cfg.CurrentLimits.SupplyTimeThreshold = Constants.TurretConstants.SUPPLY_TIME_S;
+        cfg.CurrentLimits.SupplyCurrentLowerLimit  = Constants.TurretConstants.SUPPLY_THRESHOLD_A;
+        cfg.CurrentLimits.SupplyCurrentLowerTime   = Constants.TurretConstants.SUPPLY_TIME_S;
 
         cfg.Slot0.kP = Constants.TurretConstants.kP;
         cfg.Slot0.kD = Constants.TurretConstants.kD;

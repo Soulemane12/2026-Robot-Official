@@ -106,8 +106,6 @@ public class FollowAprilTagCommand extends Command {
         // Get current vision data
         double currentTX = m_vision.getTargetTX();
         double currentTY = m_vision.getTargetTY();
-        double currentTA = m_vision.getTargetArea();
-        double tagID = m_vision.getTagID();
         boolean hasTarget = m_vision.hasValidTarget();
 
         // Handle lost target - use last valid values for a short time
