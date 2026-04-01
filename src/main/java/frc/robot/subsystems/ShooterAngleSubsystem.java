@@ -1,8 +1,6 @@
 package frc.robot.subsystems;
 
-import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -10,113 +8,100 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+
 import frc.robot.Constants;
+import frc.robot.generated.TunerConstants;
 
 public class ShooterAngleSubsystem extends SubsystemBase {
-    private final TalonFX m_motor;
+    private final TalonFX m_motor =
+            new TalonFX(Constants.CANIds.SHOOTER_ANGLE_MOTOR, TunerConstants.kCANBus);
 
-    private final MotionMagicVoltage m_motionMagic = new MotionMagicVoltage(0.0).withSlot(0);
-    private final VoltageOut m_voltageOut = new VoltageOut(0.0);
-
-    private double m_targetDeg = Constants.ShooterAngleConstants.MIN_DEG;
+    private final MotionMagicVoltage m_mm = new MotionMagicVoltage(0).withSlot(0);
+    private final VoltageOut m_volts = new VoltageOut(0);
 
     public ShooterAngleSubsystem() {
-        m_motor = new TalonFX(Constants.CANIds.SHOOTER_ANGLE_MOTOR, frc.robot.generated.TunerConstants.kCANBus);
+        TalonFXConfiguration cfg = new TalonFXConfiguration();
 
-        // Brake so it holds position against gravity
-        m_motor.setNeutralMode(NeutralModeValue.Brake);
+        cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
 
-        TalonFXConfiguration config = new TalonFXConfiguration();
+        cfg.CurrentLimits.StatorCurrentLimitEnable = true;
+        cfg.CurrentLimits.StatorCurrentLimit = Constants.ShooterAngleConstants.STATOR_LIMIT_A;
+        cfg.CurrentLimits.SupplyCurrentLimitEnable = true;
+        cfg.CurrentLimits.SupplyCurrentLimit = Constants.ShooterAngleConstants.SUPPLY_LIMIT_A;
+        cfg.CurrentLimits.SupplyCurrentThreshold = Constants.ShooterAngleConstants.SUPPLY_THRESHOLD_A;
+        cfg.CurrentLimits.SupplyTimeThreshold = Constants.ShooterAngleConstants.SUPPLY_TIME_S;
 
-        // PID / FF
-        Slot0Configs slot0 = new Slot0Configs()
-            .withKP(Constants.ShooterAngleConstants.kP)
-            .withKD(Constants.ShooterAngleConstants.kD)
-            .withKS(Constants.ShooterAngleConstants.kS)
-            .withKV(Constants.ShooterAngleConstants.kV);
-        config.Slot0 = slot0;
+        cfg.Slot0.kP = Constants.ShooterAngleConstants.kP;
+        cfg.Slot0.kD = Constants.ShooterAngleConstants.kD;
+        cfg.Slot0.kS = Constants.ShooterAngleConstants.kS;
+        cfg.Slot0.kV = Constants.ShooterAngleConstants.kV;
 
-        // Motion Magic profile
-        MotionMagicConfigs mmConfig = new MotionMagicConfigs()
-            .withMotionMagicCruiseVelocity(Constants.ShooterAngleConstants.CRUISE_RPS)
-            .withMotionMagicAcceleration(Constants.ShooterAngleConstants.ACCEL_RPS2)
-            .withMotionMagicJerk(Constants.ShooterAngleConstants.JERK_RPS3);
-        config.MotionMagic = mmConfig;
+        cfg.MotionMagic.MotionMagicCruiseVelocity = Constants.ShooterAngleConstants.CRUISE_RPS;
+        cfg.MotionMagic.MotionMagicAcceleration   = Constants.ShooterAngleConstants.ACCEL_RPS2;
+        cfg.MotionMagic.MotionMagicJerk           = Constants.ShooterAngleConstants.JERK_RPS3;
 
-        // Current limits
-        config.CurrentLimits.StatorCurrentLimitEnable = true;
-        config.CurrentLimits.StatorCurrentLimit = 100;
-        config.CurrentLimits.SupplyCurrentLimitEnable = true;
-        config.CurrentLimits.SupplyCurrentLimit = 50;
+        cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable    = true;
+        cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degToMotorRot(Constants.ShooterAngleConstants.MAX_DEG);
+        cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable    = true;
+        cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degToMotorRot(Constants.ShooterAngleConstants.MIN_DEG);
 
-        // Software soft limits (hardware-enforced in the Talon)
-        config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-        config.SoftwareLimitSwitch.ForwardSoftLimitThreshold =
-            degToMotorRot(Constants.ShooterAngleConstants.MAX_DEG);
-        config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-        config.SoftwareLimitSwitch.ReverseSoftLimitThreshold =
-            degToMotorRot(Constants.ShooterAngleConstants.MIN_DEG);
+        m_motor.getConfigurator().apply(cfg);
 
-        m_motor.getConfigurator().apply(config);
-
-        // User places hood at MIN_DEG before boot — zero encoder here
-        m_motor.setPosition(degToMotorRot(Constants.ShooterAngleConstants.MIN_DEG));
+        // Boot assumption: hood is physically at MIN_DEG / Point A before power-on
+        m_motor.setPosition(Constants.ShooterAngleConstants.ROT_A);
     }
 
-    @Override
-    public void periodic() {
-        SmartDashboard.putNumber("ShooterAngle/AngleDeg", getAngleDeg());
-        SmartDashboard.putNumber("ShooterAngle/TargetDeg", m_targetDeg);
-        SmartDashboard.putNumber("ShooterAngle/VelocityRPS", m_motor.getVelocity().getValueAsDouble());
-    }
-
-    /** Command the hood to a specific angle in degrees. */
-    public void setAngleDeg(double deg) {
-        m_targetDeg = clamp(deg, Constants.ShooterAngleConstants.MIN_DEG, Constants.ShooterAngleConstants.MAX_DEG);
-        m_motor.setControl(m_motionMagic.withPosition(degToMotorRot(m_targetDeg)));
-    }
-
-    /** Manual voltage jog with soft limit guards. */
-    public void jogVolts(double volts) {
-        double angle = getAngleDeg();
-        if (volts > 0.0 && angle >= Constants.ShooterAngleConstants.MAX_DEG) {
-            stop();
-            return;
-        }
-        if (volts < 0.0 && angle <= Constants.ShooterAngleConstants.MIN_DEG) {
-            stop();
-            return;
-        }
-        m_motor.setControl(m_voltageOut.withOutput(volts));
-    }
-
-    public void stop() {
-        m_motor.setControl(m_voltageOut.withOutput(0.0));
-    }
-
-    /** Re-zero the encoder if needed (call when hood is physically at MIN_DEG). */
     public void zeroHere() {
-        m_motor.setPosition(degToMotorRot(Constants.ShooterAngleConstants.MIN_DEG));
-        m_targetDeg = Constants.ShooterAngleConstants.MIN_DEG;
+        m_motor.setPosition(Constants.ShooterAngleConstants.ROT_A);
+    }
+
+    public double getMotorRot() {
+        return m_motor.getPosition().getValueAsDouble();
     }
 
     public double getAngleDeg() {
-        return motorRotToDeg(m_motor.getPosition().getValueAsDouble());
+        return motorRotToDeg(getMotorRot());
     }
 
-    // ===== Two-point calibration conversions =====
+    public boolean atAngle(double targetDeg) {
+        return Math.abs(getAngleDeg() - targetDeg) <= Constants.ShooterAngleConstants.ANGLE_TOLERANCE_DEG;
+    }
+
+    public void stop() {
+        m_motor.stopMotor();
+    }
+
+    public void setAngleDeg(double targetDeg) {
+        double clamped = clamp(targetDeg, Constants.ShooterAngleConstants.MIN_DEG, Constants.ShooterAngleConstants.MAX_DEG);
+        m_motor.setControl(m_mm.withPosition(degToMotorRot(clamped)));
+    }
+
+    public void jogVolts(double volts) {
+        double angleDeg = getAngleDeg();
+        boolean atMax = volts > 0.0 && angleDeg >= Constants.ShooterAngleConstants.MAX_DEG;
+        boolean atMin = volts < 0.0 && angleDeg <= Constants.ShooterAngleConstants.MIN_DEG;
+        m_motor.setControl(m_volts.withOutput((atMax || atMin) ? 0.0 : volts));
+    }
 
     private static double degToMotorRot(double deg) {
         return Constants.ShooterAngleConstants.M_ROT_PER_DEG * deg
-             + Constants.ShooterAngleConstants.B_ROT;
+                + Constants.ShooterAngleConstants.B_ROT;
     }
 
     private static double motorRotToDeg(double rot) {
         return (rot - Constants.ShooterAngleConstants.B_ROT)
-             / Constants.ShooterAngleConstants.M_ROT_PER_DEG;
+                / Constants.ShooterAngleConstants.M_ROT_PER_DEG;
     }
 
-    private static double clamp(double v, double lo, double hi) {
-        return Math.max(lo, Math.min(hi, v));
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    @Override
+    public void periodic() {
+        SmartDashboard.putNumber("ShooterAngle/Deg", getAngleDeg());
+        SmartDashboard.putNumber("ShooterAngle/MotorRot", getMotorRot());
+        SmartDashboard.putNumber("ShooterAngle/VelocityRPS", m_motor.getVelocity().getValueAsDouble());
+        SmartDashboard.putNumber("ShooterAngle/SupplyCurrentA", m_motor.getSupplyCurrent().getValueAsDouble());
     }
 }

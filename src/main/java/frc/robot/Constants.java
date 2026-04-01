@@ -34,41 +34,6 @@ public final class Constants {
         public static final double VOLTAGE = 8.0; // tune
     }
 
-    public static final class ShooterAngleConstants {
-        // Safe mechanical range (expand once travel confirmed)
-        public static final double MIN_DEG = 10.0;  // TODO: measure
-        public static final double MAX_DEG = 55.0;  // TODO: measure
-
-        // Two-point calibration — MEASURE THESE ON THE REAL ROBOT
-        // Point A: place hood at MIN_DEG, zero motor → ROT_A = 0
-        // Point B: move to a different angle, read motor rotations → ROT_B
-        public static final double DEG_A = 10.0;
-        public static final double ROT_A = 0.0;   // 0 because you zero at point A
-        public static final double DEG_B = 55.0;  // TODO: measure
-        public static final double ROT_B = 5.25;  // TODO: read from Phoenix Tuner
-
-        // Derived (computed from calibration points)
-        public static final double M_ROT_PER_DEG = (ROT_B - ROT_A) / (DEG_B - DEG_A);
-        public static final double B_ROT         = ROT_A - M_ROT_PER_DEG * DEG_A;
-
-        // Motion Magic — tune on robot
-        public static final double kP         = 35.0;
-        public static final double kD         = 0.3;
-        public static final double kS         = 0.5;
-        public static final double kV         = 0.12;
-        public static final double CRUISE_RPS = 4.0;
-        public static final double ACCEL_RPS2 = 10.0;
-        public static final double JERK_RPS3  = 120.0;
-        public static final double JOG_VOLTAGE = 3.0; // tune
-    }
-
-    public static final class TurretConstants {
-        public static final double GEAR_RATIO      = 11.0; // 10T pinion / 110T ring gear
-        public static final double MIN_DEG         = -90.0; // TODO: expand once physical travel confirmed
-        public static final double MAX_DEG         =  90.0;
-        public static final double JOG_VOLTAGE     = 3.0;  // tune
-        public static final double ANGLE_TOLERANCE = 1.5;  // degrees
-    }
 
     public static final class IntakeConstants {
         public static final double STOW = 5.0;
@@ -166,9 +131,69 @@ public final class Constants {
         }
     }
 
-    /**
-     * Limelight vision constants.
-     * Contains network table name, mounting position, and camera properties.
-     */
-    
+    public static final class TurretConstants {
+        public static final double GEAR_RATIO          = 44.0;
+        public static final double MIN_DEG             = -90.0;
+        public static final double MAX_DEG             =  90.0;
+        public static final double JOG_VOLTAGE         = 2.0;
+        public static final double MANUAL_DEADBAND     = 0.08;
+        public static final double ANGLE_TOLERANCE_DEG = 1.5;
+        public static final double STATOR_LIMIT_A      = 80.0;
+        public static final double SUPPLY_LIMIT_A      = 50.0;
+        public static final double SUPPLY_THRESHOLD_A  = 70.0;
+        public static final double SUPPLY_TIME_S       = 0.2;
+        public static final double kP          = 30.0;
+        public static final double kD          = 0.2;
+        public static final double kS          = 0.4;
+        public static final double kV          = 0.12;
+        public static final double CRUISE_RPS  = 6.0;
+        public static final double ACCEL_RPS2  = 15.0;
+        public static final double JERK_RPS3   = 150.0;
+    }
+
+    public static final class ShooterAngleConstants {
+        public static final double MIN_DEG = 10.0;
+        public static final double MAX_DEG = 55.0;
+        public static final double DEG_A   = 10.0;
+        public static final double ROT_A   = 0.0;
+        public static final double DEG_B   = 55.0;  // TODO: measure on real robot
+        public static final double ROT_B   = 5.25;  // TODO: measure on real robot
+        public static final double M_ROT_PER_DEG = (ROT_B - ROT_A) / (DEG_B - DEG_A);
+        public static final double B_ROT         = ROT_A - M_ROT_PER_DEG * DEG_A;
+        public static final double JOG_VOLTAGE         = 2.0;
+        public static final double MANUAL_DEADBAND     = 0.08;
+        public static final double ANGLE_TOLERANCE_DEG = 1.0;
+        public static final double STATOR_LIMIT_A      = 100.0;
+        public static final double SUPPLY_LIMIT_A      = 50.0;
+        public static final double SUPPLY_THRESHOLD_A  = 70.0;
+        public static final double SUPPLY_TIME_S       = 0.2;
+        public static final double kP          = 35.0;
+        public static final double kD          = 0.3;
+        public static final double kS          = 0.5;
+        public static final double kV          = 0.12;
+        public static final double CRUISE_RPS  = 4.0;
+        public static final double ACCEL_RPS2  = 10.0;
+        public static final double JERK_RPS3   = 120.0;
+    }
+
+    public static final class VisionConstants {
+        public static final String LIMELIGHT_FRONT   = "limelight-front";
+        public static final String LIMELIGHT_SIDE    = "limelight-side";
+        public static final String LIMELIGHT_TURRET  = "limelight-turret";
+        public static final int    APRILTAG_PIPELINE = 0;
+        public static final double TX_TO_TURRET_SIGN         = 1.0;
+        public static final double TRACKING_ZERO_OFFSET_DEG  = 0.0;
+        public static final double TX_DEADBAND_DEG   = 0.7;
+        // HUB AprilTag IDs for 2026 REBUILT - all faces of the HUB
+        public static final int[]  BLUE_HUB_TAG_IDS = {2, 3, 4, 5, 8, 9, 10, 11};
+        public static final int[]  RED_HUB_TAG_IDS  = {18, 19, 20, 21, 24, 25, 26, 27};
+
+        // Currently active HUB tags (updated dynamically based on game data)
+        public static final int[]  BLUE_TRACK_TAG_IDS = BLUE_HUB_TAG_IDS;
+        public static final int[]  RED_TRACK_TAG_IDS  = RED_HUB_TAG_IDS;
+        // 2026 REBUILT specific vision constants
+        public static final double MAX_TAG_DIST_M    = 6.0;  // Increased for larger field
+        public static final double BASE_STD_DEV      = 0.5;
+        public static final double STD_DEV_PER_METER = 0.4;
+    }
 }

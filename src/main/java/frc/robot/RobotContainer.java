@@ -25,9 +25,9 @@ import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.IntakePivotSubsystem;
 import frc.robot.subsystems.IntakeRollerSubsystem;
+import frc.robot.subsystems.RollerToShooterSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.ShooterAngleSubsystem;
-import frc.robot.subsystems.RollerToShooterSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
@@ -57,15 +57,14 @@ public class RobotContainer {
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
     private final SendableChooser<Command> autoChooser;
-    // Vision subsystem with callback to update drivetrain odometry
-    private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain::addVisionMeasurement);
+    private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(drivetrain);
 
     private final ShooterSubsystem m_shooter = new ShooterSubsystem(Constants.CANIds.SHOOTER_MOTOR);
     private final IntakePivotSubsystem m_intake = new IntakePivotSubsystem();
     private final IntakeRollerSubsystem m_intakeRoller = new IntakeRollerSubsystem();
+    private final RollerToShooterSubsystem m_rollerToShooter = new RollerToShooterSubsystem();
     private final TurretSubsystem m_turret = new TurretSubsystem();
     private final ShooterAngleSubsystem m_shooterAngle = new ShooterAngleSubsystem();
-    private final RollerToShooterSubsystem m_rollerToShooter = new RollerToShooterSubsystem();
 
     // Store previous Limelight settings for restoration after vision alignment
     private int prevPipeline = 0;
@@ -163,16 +162,19 @@ public class RobotContainer {
         // Intake controls - Calibration and position control
         driver.a().onTrue(m_intake.runOnce(m_intake::zero));
 
-        operator.rightBumper().whileTrue(
-            m_intake.startEnd(
-                () -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE),
-                m_intake::stop
-            )
-        );
+        operator.rightBumper().whileTrue(m_turret.trackAprilTagCommand());
 
         operator.leftBumper().whileTrue(
             m_intake.startEnd(
                 () -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE),
+                m_intake::stop
+            )
+        );
+
+        // Temporary: jog intake BACK IN to find positions — remove after tuning
+        operator.rightBumper().whileTrue(
+            m_intake.startEnd(
+                () -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE),
                 m_intake::stop
             )
         );
@@ -184,21 +186,26 @@ public class RobotContainer {
         operator.leftTrigger().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
         operator.y().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
 
-        // Toggle intake pivot limits on/off
-        operator.povUp().onTrue(m_intake.runOnce(m_intake::toggleLimits));
+        // Turret: right stick X for manual, BACK to zero
+        m_turret.setDefaultCommand(m_turret.run(() -> {
+            double raw = operator.getRightX();
+            double deadbanded = Math.abs(raw) > Constants.TurretConstants.MANUAL_DEADBAND ? raw : 0.0;
+            m_turret.jogVolts(deadbanded * Constants.TurretConstants.JOG_VOLTAGE);
+        }));
+        operator.back().onTrue(m_turret.runOnce(m_turret::zeroHere));
 
-        // Shooter angle — left stick Y for manual jog (up = raise, negate because stick up = negative Y)
-        m_shooterAngle.setDefaultCommand(m_shooterAngle.run(
-            () -> m_shooterAngle.jogVolts(-operator.getLeftY() * Constants.ShooterAngleConstants.JOG_VOLTAGE)
-        ));
+        // Hood: left stick Y for manual (negate: stick up = raise), START to zero, D-pad presets
+        m_shooterAngle.setDefaultCommand(m_shooterAngle.run(() -> {
+            double raw = -operator.getLeftY();
+            double deadbanded = Math.abs(raw) > Constants.ShooterAngleConstants.MANUAL_DEADBAND ? raw : 0.0;
+            m_shooterAngle.jogVolts(deadbanded * Constants.ShooterAngleConstants.JOG_VOLTAGE);
+        }));
+        operator.start().onTrue(m_shooterAngle.runOnce(m_shooterAngle::zeroHere));
+        operator.povDown().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(Constants.ShooterAngleConstants.MIN_DEG)));
+        operator.povLeft().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(25.0)));
+        operator.povUp().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(40.0)));
+        operator.povRight().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(Constants.ShooterAngleConstants.MAX_DEG)));
 
-        // Turret — right stick X for manual jog, D-pad presets
-        m_turret.setDefaultCommand(m_turret.run(
-            () -> m_turret.jogVolts(operator.getRightX() * Constants.TurretConstants.JOG_VOLTAGE)
-        ));
-        operator.povLeft().onTrue(m_turret.runOnce(() -> m_turret.setAngleDeg(-90)));
-        operator.povRight().onTrue(m_turret.runOnce(() -> m_turret.setAngleDeg(90)));
-        operator.povDown().onTrue(m_turret.runOnce(() -> m_turret.setAngleDeg(0)));
 
    /*
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
