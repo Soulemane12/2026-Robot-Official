@@ -28,6 +28,7 @@ import frc.robot.subsystems.IntakeRollerSubsystem;
 import frc.robot.subsystems.RollerToShooterSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.ShooterAngleSubsystem;
+import frc.robot.subsystems.ClimberSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
@@ -65,6 +66,7 @@ public class RobotContainer {
     private final RollerToShooterSubsystem m_rollerToShooter = new RollerToShooterSubsystem();
     private final TurretSubsystem m_turret = new TurretSubsystem();
     private final ShooterAngleSubsystem m_shooterAngle = new ShooterAngleSubsystem();
+    private final ClimberSubsystem m_climber = new ClimberSubsystem();
 
     // Store previous Limelight settings for restoration after vision alignment
     private int prevPipeline = 0;
@@ -215,6 +217,12 @@ public class RobotContainer {
 
 */
 
+
+        // Climber: LB/RB = jog, POV Right = go to climb pos, POV Left = go to zero
+        driver.rightBumper().whileTrue(m_climber.startEnd(m_climber::extend, m_climber::stop));
+        driver.leftBumper().whileTrue(m_climber.startEnd(m_climber::retract, m_climber::stop));
+        driver.povRight().onTrue(m_climber.runOnce(() -> m_climber.goTo(Constants.ClimberConstants.CLIMB_POS)));
+        driver.povLeft().onTrue(m_climber.runOnce(() -> m_climber.goTo(Constants.ClimberConstants.ZERO_POS)));
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }

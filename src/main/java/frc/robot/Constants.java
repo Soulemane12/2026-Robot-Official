@@ -24,10 +24,26 @@ public final class Constants {
     public static final class CANIds {
         public static final int SHOOTER_MOTOR = 20;
         public static final int INTAKE_PIVOT= 31;
-        public static final int INTAKE_ROLLER = 32;
+        public static final int INTAKE_ROLLER = 7;
         public static final int TURRET_MOTOR = 33;
         public static final int SHOOTER_ANGLE_MOTOR = 34;
         public static final int ROLLER_TO_SHOOTER = 35;
+        public static final int CLIMBER_MOTOR = 12;
+    }
+
+    public static final class ClimberConstants {
+        public static final double CLIMB_VOLTAGE = 6.0;
+        // Position presets (rotations) — jog to find real values, then update these
+        public static final double ZERO_POS  = 0.0;
+        public static final double CLIMB_POS = 50.0; // TODO: measure on robot
+        // PID / MotionMagic — tune on robot
+        public static final double kP         = 2.0;
+        public static final double kD         = 0.0;
+        public static final double kS         = 0.25;
+        public static final double kV         = 0.12;
+        public static final double CRUISE_RPS = 40.0;
+        public static final double ACCEL_RPS2 = 80.0;
+        public static final double JERK_RPS3  = 400.0;
     }
 
     public static final class RollerToShooterConstants {
