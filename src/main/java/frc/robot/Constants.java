@@ -23,7 +23,7 @@ import frc.robot.generated.TunerConstants;
 public final class Constants {
     public static final class CANIds {
         public static final int SHOOTER_MOTOR = 20;
-        public static final int INTAKE_PIVOT= 31;
+        public static final int INTAKE_PIVOT= 21;
         public static final int INTAKE_ROLLER = 7;
         public static final int TURRET_MOTOR = 33;
         public static final int SHOOTER_ANGLE_MOTOR = 34;
