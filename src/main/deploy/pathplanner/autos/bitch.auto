@@ -5,21 +5,15 @@
     "data": {
       "commands": [
         {
-          "type": "race",
+          "type": "path",
+          "data": {
+            "pathName": "8ball"
+          }
+        },
+        {
+          "type": "parallel",
           "data": {
             "commands": [
-              {
-                "type": "wait",
-                "data": {
-                  "waitTime": 7.0
-                }
-              },
-              {
-                "type": "named",
-                "data": {
-                  "name": "autoAim"
-                }
-              },
               {
                 "type": "named",
                 "data": {
@@ -36,6 +30,25 @@
                 "type": "named",
                 "data": {
                   "name": "rollerToShooterOn"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "race",
+          "data": {
+            "commands": [
+              {
+                "type": "wait",
+                "data": {
+                  "waitTime": 7.0
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "autoAim"
                 }
               }
             ]
@@ -67,15 +80,28 @@
           }
         },
         {
-          "type": "path",
+          "type": "parallel",
           "data": {
-            "pathName": "bit1"
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "turretZero"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "hoodZero"
+                }
+              }
+            ]
           }
         }
       ]
     }
   },
-  "resetOdom": false,
+  "resetOdom": true,
   "folder": null,
   "choreoAuto": false
 }

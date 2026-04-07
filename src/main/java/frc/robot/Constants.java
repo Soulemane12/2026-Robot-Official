@@ -60,8 +60,8 @@ public final class Constants {
 
     public static final class IntakeConstants {
         public static final double STOW = 0;
-        public static final double INTAKE_POSITION = 6.4;
-        public static final double JOG_VOLTAGE = 1.0;
+        public static final double INTAKE_POSITION = 15;
+        public static final double JOG_VOLTAGE = 2.0;
         public static final double ROLLER_VOLTAGE = 5.0;
     }
 
@@ -209,11 +209,12 @@ public final class Constants {
 
         static {
             // dist (m) → shooter voltage (V) — matched to measured distances — TODO: tune on robot
-            VOLTAGE_MAP.put(1.30,  8.0); // tune
-            VOLTAGE_MAP.put(1.80,  8.5); // tune
-            VOLTAGE_MAP.put(2.05,  9.0); // tune
+            VOLTAGE_MAP.put(1.30,  6.5); // tune
+            VOLTAGE_MAP.put(1.80,  7.0); // tune
+            VOLTAGE_MAP.put(2.05,  8.5); // tune
             VOLTAGE_MAP.put(2.27,  9.5); // tune — 11.13V was too high
-            VOLTAGE_MAP.put(3.32, 11.0); // tune
+            VOLTAGE_MAP.put(2.44,  9.8); // measured
+            VOLTAGE_MAP.put(3.32, 11.5); // tune
 
             // dist (m) → hood angle (deg) — increases with distance
 
@@ -221,7 +222,9 @@ public final class Constants {
             ANGLE_MAP.put(1.80, 12.0);  // *measured — shot over at 18°, tuned down
             ANGLE_MAP.put(2.05, 18.32); // *measured
             ANGLE_MAP.put(2.27, 16.0);  // tuned down from 19.62°
+            ANGLE_MAP.put(2.44, 17.78); // measured
             ANGLE_MAP.put(3.32, 26.57); // *measured
+            
             
         }
 

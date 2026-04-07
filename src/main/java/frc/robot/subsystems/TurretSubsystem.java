@@ -35,6 +35,7 @@ public class TurretSubsystem extends SubsystemBase {
     private boolean m_ferryMode = false; // false = normal (mid-field tags), true = ferry (alliance-zone tags)
     private int[] m_allowedTagIds = Constants.VisionConstants.BLUE_HUB_TAG_IDS; // updated by configureTrackingPipelineAndFilters
     private double m_cachedRotations = 0.0;
+    private int m_lockedTagId = -1; // -1 = no lock; set on first valid target
 
     public TurretSubsystem() {
         TalonFXConfiguration cfg = new TalonFXConfiguration();
@@ -139,6 +140,8 @@ public class TurretSubsystem extends SubsystemBase {
         LimelightHelpers.setPipelineIndex(ll, Constants.VisionConstants.APRILTAG_PIPELINE);
         LimelightHelpers.setLEDMode_ForceOn(ll);
 
+        m_lockedTagId = -1; // reset tag lock when pipeline is (re-)configured
+
         // Do NOT use SetFiducialIDFiltersOverride — it blocks tv=1 on some firmware versions.
         // Instead, filter by tag ID in software inside aimAtAprilTag().
         boolean isBlue = SmartDashboard.getBoolean("Turret/ForceBlueAlliance", true);
@@ -168,6 +171,17 @@ public class TurretSubsystem extends SubsystemBase {
         int tagId = (int) LimelightHelpers.getFiducialID(Constants.VisionConstants.LIMELIGHT_TURRET);
         boolean tagAllowed = Arrays.stream(m_allowedTagIds).anyMatch(id -> id == tagId);
         if (!hasTarget() || !tagAllowed) {
+            SmartDashboard.putBoolean("Turret/AimHasTarget", false);
+            m_lockedTagId = -1; // lost target — unlock so next valid tag is picked up
+            return;
+        }
+
+        // Lock onto the first valid tag seen; ignore other tags while locked.
+        // This prevents jumping between multiple visible hub tags.
+        if (m_lockedTagId == -1) {
+            m_lockedTagId = tagId;
+        } else if (tagId != m_lockedTagId) {
+            // Different tag visible — keep commanding toward current angle (hold position)
             SmartDashboard.putBoolean("Turret/AimHasTarget", false);
             return;
         }

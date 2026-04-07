@@ -33,7 +33,7 @@
             "x": 896.0,
             "y": 0.0,
             "width": 640.0,
-            "height": 384.0,
+            "height": 256.0,
             "type": "Match Time",
             "properties": {
               "topic": "/FMSInfo/MatchTime",
@@ -46,13 +46,29 @@
           {
             "title": "FMS Info",
             "x": 896.0,
-            "y": 384.0,
+            "y": 256.0,
             "width": 640.0,
             "height": 128.0,
             "type": "FMSInfo",
             "properties": {
               "topic": "/FMSInfo",
               "period": 0.033
+            }
+          },
+          {
+            "title": "Battery (V)",
+            "x": 896.0,
+            "y": 384.0,
+            "width": 640.0,
+            "height": 128.0,
+            "type": "Voltage View",
+            "properties": {
+              "topic": "/SmartDashboard/Battery/VoltageV",
+              "period": 0.033,
+              "min": 0.0,
+              "max": 13.0,
+              "orientation": "horizontal",
+              "num_tick_marks": 5
             }
           },
           {
@@ -72,7 +88,7 @@
             "title": "Intake Out",
             "x": 0.0,
             "y": 640.0,
-            "width": 768.0,
+            "width": 512.0,
             "height": 256.0,
             "type": "Boolean Box",
             "properties": {
@@ -85,14 +101,30 @@
             }
           },
           {
-            "title": "Turret Tracking",
-            "x": 768.0,
+            "title": "Has Target",
+            "x": 512.0,
             "y": 640.0,
-            "width": 768.0,
+            "width": 512.0,
             "height": 256.0,
             "type": "Boolean Box",
             "properties": {
               "topic": "/SmartDashboard/Turret/HasTarget",
+              "period": 0.033,
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "Ready To Shoot",
+            "x": 1024.0,
+            "y": 640.0,
+            "width": 512.0,
+            "height": 256.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/AutoAim/ReadyToShoot",
               "period": 0.033,
               "true_color": 4283215696,
               "false_color": 4294198070,

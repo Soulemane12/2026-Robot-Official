@@ -100,6 +100,16 @@ public class RobotContainer {
             m_indexer.runOnce(m_indexer::stop),
             m_rollerToShooter.runOnce(m_rollerToShooter::stop)));
 
+        // Return turret and hood to zero — runs until at target or 2s timeout
+        NamedCommands.registerCommand("turretZero",
+            m_turret.run(() -> m_turret.setAngleDeg(0.0))
+                    .until(() -> m_turret.atAngle(0.0))
+                    .withTimeout(2.0));
+        NamedCommands.registerCommand("hoodZero",
+            m_shooterAngle.run(() -> m_shooterAngle.setAngleDeg(0.0))
+                          .until(() -> m_shooterAngle.atAngle(0.0))
+                          .withTimeout(2.0));
+
         // Individual roller control
         NamedCommands.registerCommand("indexerOn",  m_indexer.runOnce(m_indexer::start));
         NamedCommands.registerCommand("indexerOff", m_indexer.runOnce(m_indexer::stop));
@@ -171,13 +181,16 @@ public class RobotContainer {
         // LT: intake roller + roller-to-shooter + indexer all toggle
         operator.leftTrigger(0.1).onTrue(Commands.parallel(
             m_intakeRoller.runOnce(m_intakeRoller::toggle),
-            m_indexer.runOnce(m_indexer::toggle),
-            m_rollerToShooter.runOnce(m_rollerToShooter::toggle)
+            m_indexer.runOnce(m_indexer::toggle)
         ));
 
         // RB: hold to auto-aim (turret tracking + hood angle from distance table)
         // Shooter stays on RT. Drivetrain locked to brake while held.
         operator.rightBumper().whileTrue(new AutoAimCommand(m_turret, m_shooterAngle, m_shooter));
+        operator.rightBumper().onFalse(Commands.parallel(
+            m_turret.runOnce(() -> m_turret.setAngleDeg(0.0)),
+            m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(0.0))
+        ));
 
         // RT: shooter toggle
         operator.rightTrigger(0.1).whileTrue(Commands.parallel(
@@ -199,15 +212,8 @@ public class RobotContainer {
             m_turret.jogVolts(deadbanded * Constants.TurretConstants.JOG_VOLTAGE);
         }));
 
-        // Hood: operator left stick for manual, D-pad presets, and auto-aim
-        m_shooterAngle.setDefaultCommand(m_shooterAngle.run(() -> {
-            double raw = operator.getLeftY();
-            double deadbanded = Math.abs(raw) > Constants.ShooterAngleConstants.MANUAL_DEADBAND ? raw : 0.0;
-            double volts = deadbanded * Constants.ShooterAngleConstants.JOG_VOLTAGE;
-            SmartDashboard.putNumber("ShooterAngle/ManualRaw", raw);
-            SmartDashboard.putNumber("ShooterAngle/ManualVolts", volts);
-            m_shooterAngle.jogVolts(volts);
-        }));
+        // Hood: when auto-aim is not held, keep the hood at zero.
+        m_shooterAngle.setDefaultCommand(m_shooterAngle.run(() -> m_shooterAngle.setAngleDeg(0.0)));
         operator.povDown().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(Constants.ShooterAngleConstants.MIN_DEG)));
         operator.povLeft().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(25.0)));
         operator.povUp().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(40.0)));
