@@ -1,11 +1,14 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -18,6 +21,8 @@ public class ShooterAngleSubsystem extends SubsystemBase {
 
     private final MotionMagicVoltage m_mm = new MotionMagicVoltage(0).withSlot(0);
     private final VoltageOut m_volts = new VoltageOut(0);
+    private double m_lastManualVolts = 0.0;
+    private double m_cachedRotations = 0.0;
 
     public ShooterAngleSubsystem() {
         TalonFXConfiguration cfg = new TalonFXConfiguration();
@@ -40,15 +45,18 @@ public class ShooterAngleSubsystem extends SubsystemBase {
         cfg.MotionMagic.MotionMagicAcceleration   = Constants.ShooterAngleConstants.ACCEL_RPS2;
         cfg.MotionMagic.MotionMagicJerk           = Constants.ShooterAngleConstants.JERK_RPS3;
 
-        cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable    = true;
-        cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degToMotorRot(Constants.ShooterAngleConstants.MAX_DEG);
-        cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable    = true;
-        cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degToMotorRot(Constants.ShooterAngleConstants.MIN_DEG);
+        // Soft limits disabled — jog to physical stops, read ShooterAngle/Deg, then set MIN_DEG/MAX_DEG
+        cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable = false;
+        cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = false;
 
         m_motor.getConfigurator().apply(cfg);
 
         // Boot assumption: hood is physically at MIN_DEG / Point A before power-on
         m_motor.setPosition(Constants.ShooterAngleConstants.ROT_A);
+
+        ShuffleboardTab tab = Shuffleboard.getTab("Shooting");
+        tab.addDouble("Hood Angle (deg)", this::getAngleDeg) .withPosition(0, 1).withSize(2, 1);
+        tab.addDouble("Auto Aim Angle",   () -> SmartDashboard.getNumber("AutoAim/AngleDeg", 0)).withPosition(2, 1).withSize(1, 1);
     }
 
     public void zeroHere() {
@@ -56,7 +64,7 @@ public class ShooterAngleSubsystem extends SubsystemBase {
     }
 
     public double getMotorRot() {
-        return m_motor.getPosition().getValueAsDouble();
+        return m_cachedRotations;
     }
 
     public double getAngleDeg() {
@@ -77,10 +85,8 @@ public class ShooterAngleSubsystem extends SubsystemBase {
     }
 
     public void jogVolts(double volts) {
-        double angleDeg = getAngleDeg();
-        boolean atMax = volts > 0.0 && angleDeg >= Constants.ShooterAngleConstants.MAX_DEG;
-        boolean atMin = volts < 0.0 && angleDeg <= Constants.ShooterAngleConstants.MIN_DEG;
-        m_motor.setControl(m_volts.withOutput((atMax || atMin) ? 0.0 : volts));
+        m_lastManualVolts = volts;
+        m_motor.setControl(m_volts.withOutput(volts));
     }
 
     private static double degToMotorRot(double deg) {
@@ -99,9 +105,16 @@ public class ShooterAngleSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
+        BaseStatusSignal.refreshAll(
+            m_motor.getPosition(),
+            m_motor.getVelocity(),
+            m_motor.getSupplyCurrent()
+        );
+        m_cachedRotations = m_motor.getPosition().getValueAsDouble();
         SmartDashboard.putNumber("ShooterAngle/Deg", getAngleDeg());
         SmartDashboard.putNumber("ShooterAngle/MotorRot", getMotorRot());
         SmartDashboard.putNumber("ShooterAngle/VelocityRPS", m_motor.getVelocity().getValueAsDouble());
         SmartDashboard.putNumber("ShooterAngle/SupplyCurrentA", m_motor.getSupplyCurrent().getValueAsDouble());
+        SmartDashboard.putNumber("ShooterAngle/LastManualVolts", m_lastManualVolts);
     }
 }

@@ -29,10 +29,11 @@ import frc.robot.subsystems.RollerToShooterSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.ShooterAngleSubsystem;
 import frc.robot.subsystems.ClimberSubsystem;
+import frc.robot.subsystems.IndexerSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
-import frc.robot.commands.TrackHubCommand;
+import frc.robot.commands.AutoAimCommand;
 
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
@@ -54,6 +55,7 @@ public class RobotContainer {
 
     private final CommandXboxController driver = new CommandXboxController(0);
     private final CommandXboxController operator = new CommandXboxController(1);
+    private final CommandXboxController operator2 = new CommandXboxController(2);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
@@ -67,25 +69,44 @@ public class RobotContainer {
     private final TurretSubsystem m_turret = new TurretSubsystem();
     private final ShooterAngleSubsystem m_shooterAngle = new ShooterAngleSubsystem();
     private final ClimberSubsystem m_climber = new ClimberSubsystem();
+    private final IndexerSubsystem m_indexer = new IndexerSubsystem();
 
-    // Store previous Limelight settings for restoration after vision alignment
-    private int prevPipeline = 0;
-    private int prevLedMode = 0;
+    private boolean m_intakeDeployed = false;
 
     public RobotContainer() {
         // Register named commands BEFORE building auto chooser
-        NamedCommands.registerCommand("p",
-            new TrackHubCommand(drivetrain, m_visionSubsystem));
-        NamedCommands.registerCommand("shooterOn",
-            m_shooter.runOnce(m_shooter::start));
-        NamedCommands.registerCommand("shooterOff",
-            m_shooter.runOnce(m_shooter::stop));
-        NamedCommands.registerCommand("rollerOn",
-            m_rollerToShooter.runOnce(m_rollerToShooter::start));
-        NamedCommands.registerCommand("rollerOff",
-            m_rollerToShooter.runOnce(m_rollerToShooter::stop));
+        // Shooter
+        NamedCommands.registerCommand("shooterOn",  m_shooter.runOnce(m_shooter::start));
+        NamedCommands.registerCommand("shooterOff", m_shooter.runOnce(m_shooter::stop));
 
-        autoChooser = AutoBuilder.buildAutoChooser("");
+        NamedCommands.registerCommand("autoAim",
+            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter));
+
+        // Intake position
+        NamedCommands.registerCommand("intakeZero",
+            m_intake.runOnce(m_intake::zero));
+        NamedCommands.registerCommand("intakeOut",
+            m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
+        NamedCommands.registerCommand("intakeStow",
+            m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
+
+        // All rollers together
+        NamedCommands.registerCommand("rollersOn", Commands.parallel(
+            m_intakeRoller.runOnce(m_intakeRoller::start),
+            m_indexer.runOnce(m_indexer::start),
+            m_rollerToShooter.runOnce(m_rollerToShooter::start)));
+        NamedCommands.registerCommand("rollersOff", Commands.parallel(
+            m_intakeRoller.runOnce(m_intakeRoller::stop),
+            m_indexer.runOnce(m_indexer::stop),
+            m_rollerToShooter.runOnce(m_rollerToShooter::stop)));
+
+        // Individual roller control
+        NamedCommands.registerCommand("indexerOn",  m_indexer.runOnce(m_indexer::start));
+        NamedCommands.registerCommand("indexerOff", m_indexer.runOnce(m_indexer::stop));
+        NamedCommands.registerCommand("rollerToShooterOn",  m_rollerToShooter.runOnce(m_rollerToShooter::start));
+        NamedCommands.registerCommand("rollerToShooterOff", m_rollerToShooter.runOnce(m_rollerToShooter::stop));
+
+        autoChooser = AutoBuilder.buildAutoChooser("bitch");
         autoChooser.setDefaultOption("None", Commands.none());
         autoChooser.addOption("Shoot 3 Balls", Commands.sequence(
             m_shooter.runOnce(m_shooter::start),
@@ -111,10 +132,6 @@ public class RobotContainer {
     }
 
     private void configureBindings() {
-        // Note that X is defined as forward according to WPILib convention,
-        // and Y is defined as to the left according to WPILib convention.
-
-        // Default teleop drive command using the new teleopDrive method
         drivetrain.setDefaultCommand(drivetrain.teleopDrive(driver));
 
         final var idle = new SwerveRequest.Idle();
@@ -122,107 +139,94 @@ public class RobotContainer {
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
-        // Vision alignment - press LEFT TRIGGER (LT, not LB!) to toggle auto-rotate toward AprilTag
-        driver.leftTrigger(0.1).toggleOnTrue(
-            drivetrain.visionAlignDrive(driver, m_visionSubsystem)
-                .beforeStarting(() -> {
-                    drivetrain.resetAimLimiter();
+        // Zero climber encoder every time the robot is enabled
+        RobotModeTriggers.disabled().onFalse(m_climber.runOnce(m_climber::zero));
 
-                    // Store current settings before switching
-                    prevPipeline = m_visionSubsystem.getPipeline();
-                    prevLedMode = m_visionSubsystem.getLEDMode();
-
-                    // Switch to AprilTag pipeline and turn on LEDs
-                    m_visionSubsystem.setPipeline(0);   // Set to your AprilTag pipeline index
-                    m_visionSubsystem.setLEDMode(3);    // Turn on LEDs while aiming
-                })
-                .finallyDo(interrupted -> {
-                    drivetrain.resetAimLimiter();
-
-                    // Restore previous settings
-                    m_visionSubsystem.setPipeline(prevPipeline);
-                    m_visionSubsystem.setLEDMode(prevLedMode);
-                })
-        );
-
-        driver.a().whileTrue(drivetrain.applyRequest(() -> brake));
-        driver.b().whileTrue(drivetrain.applyRequest(() ->
-            point.withModuleDirection(new Rotation2d(-driver.getLeftY(), -driver.getLeftX()))
-        ));
+        // --- Driver ---
+        driver.a().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));   // reset gyro
+        driver.b().onTrue(m_turret.runOnce(m_turret::zeroHere));              // zero turret
+        driver.x().whileTrue(drivetrain.applyRequest(() -> brake));            // brake
+        driver.y().onTrue(m_shooterAngle.runOnce(m_shooterAngle::zeroHere));  // zero hood
 
         driver.povUp().whileTrue(drivetrain.applyRequest(() ->
-            forwardStraight.withVelocityX(0.5).withVelocityY(0))
-        );
+            forwardStraight.withVelocityX(0.5).withVelocityY(0)));
         driver.povDown().whileTrue(drivetrain.applyRequest(() ->
-            forwardStraight.withVelocityX(-0.5).withVelocityY(0))
-        );
-        driver.x().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+            forwardStraight.withVelocityX(-0.5).withVelocityY(0)));
 
-        // Operator controls - Shooter toggle on A button
-        operator.a().onTrue(m_shooter.runOnce(m_shooter::toggle));
+        driver.leftTrigger(0.1).whileTrue(m_climber.startEnd(m_climber::retract, m_climber::stop));
+        driver.rightTrigger(0.1).whileTrue(m_climber.startEnd(m_climber::extend, m_climber::stop));
 
-        // Intake controls - Calibration and position control
-        driver.a().onTrue(m_intake.runOnce(m_intake::zero));
+        // --- Operator ---
+        // Y: re-zero intake pivot encoder
+        operator.y().onTrue(m_intake.runOnce(m_intake::zero));
 
-        operator.rightBumper().whileTrue(m_turret.trackAprilTagCommand());
+        // LB: intake pivot in/out toggle
+        operator.leftBumper().onTrue(m_intake.runOnce(() -> {
+            m_intakeDeployed = !m_intakeDeployed;
+            m_intake.goTo(m_intakeDeployed
+                ? Constants.IntakeConstants.INTAKE_POSITION
+                : Constants.IntakeConstants.STOW);
+        }));
 
-        operator.leftBumper().whileTrue(
-            m_intake.startEnd(
-                () -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE),
-                m_intake::stop
-            )
-        );
+        // LT: intake roller + roller-to-shooter + indexer all toggle
+        operator.leftTrigger(0.1).onTrue(Commands.parallel(
+            m_intakeRoller.runOnce(m_intakeRoller::toggle),
+            m_indexer.runOnce(m_indexer::toggle),
+            m_rollerToShooter.runOnce(m_rollerToShooter::toggle)
+        ));
 
-        // Temporary: jog intake BACK IN to find positions — remove after tuning
-        operator.rightBumper().whileTrue(
-            m_intake.startEnd(
-                () -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE),
-                m_intake::stop
-            )
-        );
+        // RB: hold to auto-aim (turret tracking + hood angle from distance table)
+        // Shooter stays on RT. Drivetrain locked to brake while held.
+        operator.rightBumper().whileTrue(new AutoAimCommand(m_turret, m_shooterAngle, m_shooter));
 
-        operator.x().onTrue(m_intakeRoller.runOnce(m_intakeRoller::toggle));
-        operator.b().onTrue(m_rollerToShooter.runOnce(m_rollerToShooter::toggle));
+        // RT: shooter toggle
+        operator.rightTrigger(0.1).whileTrue(Commands.parallel(
+           
+            (m_shooter.runOnce(m_shooter::toggle)),
+         
+            m_rollerToShooter.runOnce(m_rollerToShooter::toggle)
+        ));
 
-        operator.rightTrigger().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.STOW)));
-        operator.leftTrigger().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.EXTENDED)));
-        operator.y().onTrue(m_intake.runOnce(() -> m_intake.goTo(Constants.IntakeConstants.INTAKE_POSITION)));
 
-        // Turret: right stick X for manual, BACK to zero
+
+
+
+
+        // Turret: right stick X for manual
         m_turret.setDefaultCommand(m_turret.run(() -> {
             double raw = operator.getRightX();
             double deadbanded = Math.abs(raw) > Constants.TurretConstants.MANUAL_DEADBAND ? raw : 0.0;
             m_turret.jogVolts(deadbanded * Constants.TurretConstants.JOG_VOLTAGE);
         }));
-        operator.back().onTrue(m_turret.runOnce(m_turret::zeroHere));
 
-        // Hood: left stick Y for manual (negate: stick up = raise), START to zero, D-pad presets
+        // Hood: operator left stick for manual, D-pad presets, and auto-aim
         m_shooterAngle.setDefaultCommand(m_shooterAngle.run(() -> {
-            double raw = -operator.getLeftY();
+            double raw = operator.getLeftY();
             double deadbanded = Math.abs(raw) > Constants.ShooterAngleConstants.MANUAL_DEADBAND ? raw : 0.0;
-            m_shooterAngle.jogVolts(deadbanded * Constants.ShooterAngleConstants.JOG_VOLTAGE);
+            double volts = deadbanded * Constants.ShooterAngleConstants.JOG_VOLTAGE;
+            SmartDashboard.putNumber("ShooterAngle/ManualRaw", raw);
+            SmartDashboard.putNumber("ShooterAngle/ManualVolts", volts);
+            m_shooterAngle.jogVolts(volts);
         }));
-        operator.start().onTrue(m_shooterAngle.runOnce(m_shooterAngle::zeroHere));
         operator.povDown().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(Constants.ShooterAngleConstants.MIN_DEG)));
         operator.povLeft().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(25.0)));
         operator.povUp().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(40.0)));
         operator.povRight().onTrue(m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(Constants.ShooterAngleConstants.MAX_DEG)));
 
-
-   /*
-        joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
-
-*/
-
-
-        // Climber: LB/RB = jog, POV Right = go to climb pos, POV Left = go to zero
-        driver.rightBumper().whileTrue(m_climber.startEnd(m_climber::extend, m_climber::stop));
-        driver.leftBumper().whileTrue(m_climber.startEnd(m_climber::retract, m_climber::stop));
-        driver.povRight().onTrue(m_climber.runOnce(() -> m_climber.goTo(Constants.ClimberConstants.CLIMB_POS)));
-        driver.povLeft().onTrue(m_climber.runOnce(() -> m_climber.goTo(Constants.ClimberConstants.ZERO_POS)));
+        // --- Operator 2 (port 2) ---
+        // LT: intake pivot jog toward stow, RT: intake pivot jog toward intake position
+        operator2.leftTrigger(0.1).whileTrue(
+            m_intake.startEnd(
+                () -> m_intake.jogVolts(-Constants.IntakeConstants.JOG_VOLTAGE),
+                m_intake::stop
+            )
+        );
+        operator2.rightTrigger(0.1).whileTrue(
+            m_intake.startEnd(
+                () -> m_intake.jogVolts(Constants.IntakeConstants.JOG_VOLTAGE),
+                m_intake::stop
+            )
+        );
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }

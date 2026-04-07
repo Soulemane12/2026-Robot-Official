@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
@@ -11,6 +12,9 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -26,9 +30,11 @@ public class TurretSubsystem extends SubsystemBase {
     private final MotionMagicVoltage m_mm = new MotionMagicVoltage(0).withSlot(0);
     private final VoltageOut m_volts = new VoltageOut(0);
 
-    // Track previous game data to detect HUB activation changes
     private String m_previousGameData = "";
     private boolean m_pipelineConfigured = false;
+    private boolean m_ferryMode = false; // false = normal (mid-field tags), true = ferry (alliance-zone tags)
+    private int[] m_allowedTagIds = Constants.VisionConstants.BLUE_HUB_TAG_IDS; // updated by configureTrackingPipelineAndFilters
+    private double m_cachedRotations = 0.0;
 
     public TurretSubsystem() {
         TalonFXConfiguration cfg = new TalonFXConfiguration();
@@ -53,15 +59,23 @@ public class TurretSubsystem extends SubsystemBase {
 
         cfg.ClosedLoopGeneral.ContinuousWrap = false;
 
-        cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable    = true;
-        cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degToMotorRot(Constants.TurretConstants.MAX_DEG);
-        cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable    = true;
-        cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degToMotorRot(Constants.TurretConstants.MIN_DEG);
-
         m_motor.getConfigurator().apply(cfg);
 
         // Boot assumption: turret is physically centered before power-on
         m_motor.setPosition(0.0);
+
+        SmartDashboard.putBoolean("Turret/ForceBlueAlliance", true);
+        SmartDashboard.putBoolean("Turret/ForceRedAlliance", false);
+
+        ShuffleboardTab tab = Shuffleboard.getTab("Shooting");
+        tab.addDouble("Turret Angle (deg)", this::getAngleDeg)   .withPosition(0, 0).withSize(2, 1);
+        tab.addDouble("TX (deg)",           this::getTxDeg)       .withPosition(2, 0).withSize(1, 1);
+        tab.addBoolean("Has Target",        this::hasTarget)      .withPosition(3, 0).withSize(1, 1);
+        tab.addDouble("Tag ID",             () -> LimelightHelpers.getFiducialID(Constants.VisionConstants.LIMELIGHT_TURRET))
+                                                                   .withPosition(4, 0).withSize(1, 1);
+        tab.addDouble("Distance (m)",       this::getDistanceToTargetM).withPosition(5, 0).withSize(1, 1);
+        tab.addBoolean("On Target",         () -> SmartDashboard.getBoolean("AutoAim/OnTarget",     false)).withPosition(3, 1).withSize(1, 1);
+        tab.addBoolean("Ready To Shoot",    () -> SmartDashboard.getBoolean("AutoAim/ReadyToShoot", false)).withPosition(4, 1).withSize(2, 1);
     }
 
     public void zeroHere() {
@@ -69,7 +83,7 @@ public class TurretSubsystem extends SubsystemBase {
     }
 
     public double getMotorRot() {
-        return m_motor.getPosition().getValueAsDouble();
+        return m_cachedRotations;
     }
 
     public double getAngleDeg() {
@@ -90,11 +104,15 @@ public class TurretSubsystem extends SubsystemBase {
     }
 
     public void jogVolts(double volts) {
-        double angleDeg = getAngleDeg();
-        boolean atMax = volts > 0.0 && angleDeg >= Constants.TurretConstants.MAX_DEG;
-        boolean atMin = volts < 0.0 && angleDeg <= Constants.TurretConstants.MIN_DEG;
-        m_motor.setControl(m_volts.withOutput((atMax || atMin) ? 0.0 : volts));
+        m_motor.setControl(m_volts.withOutput(volts));
     }
+
+    public void toggleFerryMode() {
+        m_ferryMode = !m_ferryMode;
+        configureTrackingPipelineAndFilters(); // apply immediately
+    }
+
+    public boolean isFerryMode() { return m_ferryMode; }
 
     public boolean hasTarget() {
         return LimelightHelpers.getTV(Constants.VisionConstants.LIMELIGHT_TURRET);
@@ -104,13 +122,27 @@ public class TurretSubsystem extends SubsystemBase {
         return LimelightHelpers.getTX(Constants.VisionConstants.LIMELIGHT_TURRET);
     }
 
+    /** Horizontal ground-plane distance to the tracked target in meters. Returns -1 if no target or bad data. */
+    public double getDistanceToTargetM() {
+        if (!hasTarget()) return -1.0;
+        // Use CameraSpace pose — always valid when TV=1, no Limelight transform config required.
+        double[] pose = LimelightHelpers.getTargetPose_CameraSpace(Constants.VisionConstants.LIMELIGHT_TURRET);
+        if (pose == null || pose.length < 3) return -1.0;
+        double x = pose[0]; // left/right in camera frame
+        double z = pose[2]; // forward in camera frame
+        double dist = Math.sqrt(x * x + z * z);
+        return dist > 0.1 ? dist : -1.0; // reject all-zero garbage from no-pose state
+    }
+
     public void configureTrackingPipelineAndFilters() {
         String ll = Constants.VisionConstants.LIMELIGHT_TURRET;
         LimelightHelpers.setPipelineIndex(ll, Constants.VisionConstants.APRILTAG_PIPELINE);
+        LimelightHelpers.setLEDMode_ForceOn(ll);
 
-        // Get alliance from dashboard override or DriverStation
-        boolean isBlue = SmartDashboard.getBoolean("Turret/ForceBlueAlliance", false);
-        boolean isRed = SmartDashboard.getBoolean("Turret/ForceRedAlliance", false);
+        // Do NOT use SetFiducialIDFiltersOverride — it blocks tv=1 on some firmware versions.
+        // Instead, filter by tag ID in software inside aimAtAprilTag().
+        boolean isBlue = SmartDashboard.getBoolean("Turret/ForceBlueAlliance", true);
+        boolean isRed  = SmartDashboard.getBoolean("Turret/ForceRedAlliance", false);
 
         Alliance alliance;
         if (isBlue && !isRed) {
@@ -118,24 +150,27 @@ public class TurretSubsystem extends SubsystemBase {
         } else if (isRed && !isBlue) {
             alliance = Alliance.Red;
         } else {
-            var driverStationAlliance = DriverStation.getAlliance();
-            if (driverStationAlliance.isEmpty()) return;
-            alliance = driverStationAlliance.get();
+            var ds = DriverStation.getAlliance();
+            if (ds.isEmpty()) return;
+            alliance = ds.get();
         }
 
-        // Always track our own alliance HUB (no switching based on game data)
-        int[] ids = alliance == Alliance.Blue
-                ? Constants.VisionConstants.BLUE_TRACK_TAG_IDS
-                : Constants.VisionConstants.RED_TRACK_TAG_IDS;
-
-        if (ids.length > 0) {
-            LimelightHelpers.SetFiducialIDFiltersOverride(ll, ids);
-            LimelightHelpers.setPriorityTagID(ll, ids[0]);
+        if (alliance == Alliance.Blue) {
+            m_allowedTagIds = m_ferryMode ? Constants.VisionConstants.BLUE_FERRY_TAG_IDS
+                                          : Constants.VisionConstants.BLUE_TRACK_TAG_IDS;
+        } else {
+            m_allowedTagIds = m_ferryMode ? Constants.VisionConstants.RED_FERRY_TAG_IDS
+                                          : Constants.VisionConstants.RED_TRACK_TAG_IDS;
         }
     }
 
     public void aimAtAprilTag() {
-        if (!hasTarget()) return;
+        int tagId = (int) LimelightHelpers.getFiducialID(Constants.VisionConstants.LIMELIGHT_TURRET);
+        boolean tagAllowed = Arrays.stream(m_allowedTagIds).anyMatch(id -> id == tagId);
+        if (!hasTarget() || !tagAllowed) {
+            SmartDashboard.putBoolean("Turret/AimHasTarget", false);
+            return;
+        }
 
         double tx = getTxDeg();
 
@@ -145,8 +180,10 @@ public class TurretSubsystem extends SubsystemBase {
 
         if (Math.abs(tx) < deadband) tx = 0.0;
 
-        double desiredDeg = offset + Constants.VisionConstants.TX_TO_TURRET_SIGN * tx;
+        double desiredDeg = getAngleDeg() + offset + Constants.VisionConstants.TX_TO_TURRET_SIGN * tx;
 
+        SmartDashboard.putBoolean("Turret/AimHasTarget", true);
+        SmartDashboard.putNumber("Turret/AimTargetDeg", desiredDeg);
         setAngleDeg(desiredDeg);
     }
 
@@ -169,15 +206,24 @@ public class TurretSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
+        BaseStatusSignal.refreshAll(
+            m_motor.getPosition(),
+            m_motor.getVelocity(),
+            m_motor.getSupplyCurrent()
+        );
+        m_cachedRotations = m_motor.getPosition().getValueAsDouble();
         SmartDashboard.putNumber("Turret/AngleDeg", getAngleDeg());
         SmartDashboard.putNumber("Turret/MotorRot", getMotorRot());
         SmartDashboard.putNumber("Turret/VelocityRPS", m_motor.getVelocity().getValueAsDouble());
         SmartDashboard.putNumber("Turret/SupplyCurrentA", m_motor.getSupplyCurrent().getValueAsDouble());
         SmartDashboard.putBoolean("Turret/HasTarget", hasTarget());
         SmartDashboard.putNumber("Turret/TxDeg", getTxDeg());
+        SmartDashboard.putString("Turret/LimelightName", Constants.VisionConstants.LIMELIGHT_TURRET);
+        SmartDashboard.putNumber("Turret/Pipeline", LimelightHelpers.getCurrentPipelineIndex(Constants.VisionConstants.LIMELIGHT_TURRET));
+        SmartDashboard.putNumber("Turret/TagId", LimelightHelpers.getFiducialID(Constants.VisionConstants.LIMELIGHT_TURRET));
 
         // Auto-reconfigure pipeline when alliance override changes
-        boolean forceBlue = SmartDashboard.getBoolean("Turret/ForceBlueAlliance", false);
+        boolean forceBlue = SmartDashboard.getBoolean("Turret/ForceBlueAlliance", true);
         boolean forceRed = SmartDashboard.getBoolean("Turret/ForceRedAlliance", false);
         String allianceKey = forceBlue + "_" + forceRed;
 

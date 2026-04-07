@@ -11,7 +11,13 @@
       "Bash(open /Applications/Google Chrome.app)",
       "Read(//Applications/**)",
       "Bash(open \"/Applications/Google Chrome.app\")",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "WebFetch(domain:frc-elastic.gitbook.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(del \"c:\\\\Users\\\\Rambots\\\\Documents\\\\2026-Robot-Official\\\\src\\\\main\\\\java\\\\frc\\\\robot\\\\commands\\\\TrackHubCommand.java\")",
+      "WebFetch(domain:frc.ohlinis.me)",
+      "WebFetch(domain:medium.com)"
     ]
   }
 }

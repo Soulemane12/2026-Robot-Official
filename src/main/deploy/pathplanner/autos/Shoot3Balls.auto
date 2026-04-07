@@ -6,59 +6,87 @@
       "commands": [
         {
           "type": "named",
-          "data": { "name": "shooterOn" }
+          "data": {
+            "name": "shooterOn"
+          }
         },
         {
           "type": "wait",
-          "data": { "waitTime": 1.5 }
+          "data": {
+            "waitTime": 1.5
+          }
         },
         {
           "type": "named",
-          "data": { "name": "rollerOn" }
+          "data": {
+            "name": "rollerOn"
+          }
         },
         {
           "type": "wait",
-          "data": { "waitTime": 0.5 }
+          "data": {
+            "waitTime": 0.5
+          }
         },
         {
           "type": "named",
-          "data": { "name": "rollerOff" }
+          "data": {
+            "name": "rollerOff"
+          }
         },
         {
           "type": "wait",
-          "data": { "waitTime": 0.3 }
+          "data": {
+            "waitTime": 0.3
+          }
         },
         {
           "type": "named",
-          "data": { "name": "rollerOn" }
+          "data": {
+            "name": "rollerOn"
+          }
         },
         {
           "type": "wait",
-          "data": { "waitTime": 0.5 }
+          "data": {
+            "waitTime": 0.5
+          }
         },
         {
           "type": "named",
-          "data": { "name": "rollerOff" }
+          "data": {
+            "name": "rollerOff"
+          }
         },
         {
           "type": "wait",
-          "data": { "waitTime": 0.3 }
+          "data": {
+            "waitTime": 0.3
+          }
         },
         {
           "type": "named",
-          "data": { "name": "rollerOn" }
+          "data": {
+            "name": "rollerOn"
+          }
         },
         {
           "type": "wait",
-          "data": { "waitTime": 0.5 }
+          "data": {
+            "waitTime": 0.5
+          }
         },
         {
           "type": "named",
-          "data": { "name": "rollerOff" }
+          "data": {
+            "name": "rollerOff"
+          }
         },
         {
           "type": "named",
-          "data": { "name": "shooterOff" }
+          "data": {
+            "name": "shooterOff"
+          }
         }
       ]
     }

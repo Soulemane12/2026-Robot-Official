@@ -11,8 +11,8 @@
             "title": "Field",
             "x": 0.0,
             "y": 0.0,
-            "width": 768.0,
-            "height": 512.0,
+            "width": 896.0,
+            "height": 640.0,
             "type": "Field",
             "properties": {
               "topic": "/SmartDashboard/Field",
@@ -30,10 +30,10 @@
           },
           {
             "title": "Match Time",
-            "x": 768.0,
+            "x": 896.0,
             "y": 0.0,
-            "width": 512.0,
-            "height": 256.0,
+            "width": 640.0,
+            "height": 384.0,
             "type": "Match Time",
             "properties": {
               "topic": "/FMSInfo/MatchTime",
@@ -45,9 +45,9 @@
           },
           {
             "title": "FMS Info",
-            "x": 768.0,
-            "y": 256.0,
-            "width": 512.0,
+            "x": 896.0,
+            "y": 384.0,
+            "width": 640.0,
             "height": 128.0,
             "type": "FMSInfo",
             "properties": {
@@ -57,9 +57,9 @@
           },
           {
             "title": "Auto Mode",
-            "x": 768.0,
-            "y": 384.0,
-            "width": 512.0,
+            "x": 896.0,
+            "y": 512.0,
+            "width": 640.0,
             "height": 128.0,
             "type": "ComboBox Chooser",
             "properties": {
@@ -71,9 +71,9 @@
           {
             "title": "Intake Out",
             "x": 0.0,
-            "y": 512.0,
-            "width": 256.0,
-            "height": 128.0,
+            "y": 640.0,
+            "width": 768.0,
+            "height": 256.0,
             "type": "Boolean Box",
             "properties": {
               "topic": "/SmartDashboard/Intake/IsOut",
@@ -86,10 +86,10 @@
           },
           {
             "title": "Turret Tracking",
-            "x": 256.0,
-            "y": 512.0,
-            "width": 256.0,
-            "height": 128.0,
+            "x": 768.0,
+            "y": 640.0,
+            "width": 768.0,
+            "height": 256.0,
             "type": "Boolean Box",
             "properties": {
               "topic": "/SmartDashboard/Turret/HasTarget",
@@ -98,38 +98,6 @@
               "false_color": 4294198070,
               "true_icon": "None",
               "false_icon": "None"
-            }
-          },
-          {
-            "title": "Battery Voltage",
-            "x": 512.0,
-            "y": 512.0,
-            "width": 384.0,
-            "height": 128.0,
-            "type": "Voltage View",
-            "properties": {
-              "topic": "/SmartDashboard/Battery/VoltageV",
-              "period": 0.033,
-              "min_value": 6.0,
-              "max_value": 13.0,
-              "divisions": 5,
-              "inverted": false,
-              "orientation": "horizontal"
-            }
-          },
-          {
-            "title": "Current Draw",
-            "x": 896.0,
-            "y": 512.0,
-            "width": 384.0,
-            "height": 128.0,
-            "type": "Graph",
-            "properties": {
-              "topic": "/SmartDashboard/Battery/CurrentA",
-              "period": 0.033,
-              "time_displayed": 10.0,
-              "color": 4278238420,
-              "line_width": 2.0
             }
           }
         ]

@@ -21,6 +21,11 @@ public class IntakeRollerSubsystem extends SubsystemBase {
         m_motor.getConfigurator().apply(config);
     }
 
+    public void start() {
+        m_running = true;
+        m_motor.setControl(m_voltageOut.withOutput(Constants.IntakeConstants.ROLLER_VOLTAGE));
+    }
+
     public void toggle() {
         m_running = !m_running;
         if (m_running) {

@@ -50,11 +50,6 @@ public class IntakePivotSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         if (m_limitsEnabled) {
-            // If the pivot has gone below the lower limit and is still moving backwards, stop it
-            if (getPositionRotations() <= 0.67 && getVelocityRPS() < 0.0) {
-                stop();
-            }
-
             // If the pivot has gone above the upper limit and is still moving forwards, stop it
             if (getPositionRotations() >= 101 && getVelocityRPS() > 0.0) {
                 stop();
@@ -65,6 +60,7 @@ public class IntakePivotSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Intake/TargetRot", m_targetRotations);
         SmartDashboard.putNumber("Intake/VelocityRPS", getVelocityRPS());
         SmartDashboard.putBoolean("Intake/LimitsEnabled", m_limitsEnabled);
+        SmartDashboard.putBoolean("Intake/IsOut", getPositionRotations() > Constants.IntakeConstants.STOW + 5.0);
     }
 
     public void zero() {
@@ -87,10 +83,6 @@ public class IntakePivotSubsystem extends SubsystemBase {
 
     public void jogVolts(double volts) {
         if (m_limitsEnabled) {
-            if (volts < 0.0 && getPositionRotations() <= 0.67) {
-                stop();
-                return;
-            }
             if (volts > 0.0 && getPositionRotations() >= 101) {
                 stop();
                 return;

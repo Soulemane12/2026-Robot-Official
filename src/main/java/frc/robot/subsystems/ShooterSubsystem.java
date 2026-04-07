@@ -4,6 +4,7 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -17,6 +18,11 @@ public class ShooterSubsystem extends SubsystemBase {
     public ShooterSubsystem(int motorCanId) {
         m_shooterMotor = new TalonFX(motorCanId, frc.robot.generated.TunerConstants.kCANBus);
         m_shooterMotor.setNeutralMode(NeutralModeValue.Coast);
+
+        var tab = Shuffleboard.getTab("Shooting");
+        tab.addDouble("Shooter Voltage",  () -> m_shooterMotor.getMotorVoltage().getValueAsDouble()).withPosition(0, 2).withSize(2, 1);
+        tab.addDouble("Shooter Velocity", () -> m_shooterMotor.getVelocity().getValueAsDouble())   .withPosition(2, 2).withSize(1, 1);
+        tab.addBoolean("Shooter Running", () -> m_isRunning)                                       .withPosition(3, 2).withSize(1, 1);
     }
 
     @Override
@@ -44,6 +50,14 @@ public class ShooterSubsystem extends SubsystemBase {
     public void start() {
         m_shooterMotor.setControl(m_voltageOut.withOutput(SHOOTER_VOLTAGE));
         m_isRunning = true;
+    }
+
+    /**
+     * Set shooter to a specific voltage (used by auto-aim)
+     */
+    public void setVoltage(double volts) {
+        m_shooterMotor.setControl(m_voltageOut.withOutput(volts));
+        m_isRunning = volts > 0.0;
     }
 
     /**

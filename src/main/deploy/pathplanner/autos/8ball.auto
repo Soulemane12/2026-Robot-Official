@@ -7,7 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "MoveBack_Middle"
+            "pathName": null
           }
         },
         {
@@ -19,7 +19,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "BackMiddle_Pickup"
+            "pathName": null
           }
         },
         {
@@ -31,7 +31,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Pickup_Shoot"
+            "pathName": null
           }
         },
         {

@@ -48,9 +48,13 @@ public class ClimberSubsystem extends SubsystemBase {
         m_motor.setControl(m_mm.withPosition(rotations));
     }
 
-    /** Jog at a fixed voltage — use to find positions manually. */
+    /** Jog at a fixed voltage — stops automatically at CLIMB_POS. */
     public void extend() {
-        m_motor.setControl(m_volts.withOutput(Constants.ClimberConstants.CLIMB_VOLTAGE));
+        if (getPositionRotations() <= Constants.ClimberConstants.CLIMB_POS) {
+            stop();
+        } else {
+            m_motor.setControl(m_volts.withOutput(Constants.ClimberConstants.CLIMB_VOLTAGE));
+        }
     }
 
     public void retract() {

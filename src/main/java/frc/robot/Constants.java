@@ -4,6 +4,8 @@ import static edu.wpi.first.units.Units.*;
 
 import java.util.Optional;
 
+import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
+
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -22,20 +24,25 @@ import frc.robot.generated.TunerConstants;
  */
 public final class Constants {
     public static final class CANIds {
-        public static final int SHOOTER_MOTOR = 20;
+        public static final int SHOOTER_MOTOR = 29;
         public static final int INTAKE_PIVOT= 21;
         public static final int INTAKE_ROLLER = 7;
-        public static final int TURRET_MOTOR = 33;
+        public static final int TURRET_MOTOR = 26;
         public static final int SHOOTER_ANGLE_MOTOR = 34;
-        public static final int ROLLER_TO_SHOOTER = 35;
+        public static final int ROLLER_TO_SHOOTER = 14;
         public static final int CLIMBER_MOTOR = 12;
+        public static final int INDEXER_MOTOR = 30;
+    }
+
+    public static final class IndexerConstants {
+        public static final double VOLTAGE = -3.0; // tune
     }
 
     public static final class ClimberConstants {
         public static final double CLIMB_VOLTAGE = 6.0;
         // Position presets (rotations) — jog to find real values, then update these
         public static final double ZERO_POS  = 0.0;
-        public static final double CLIMB_POS = 50.0; // TODO: measure on robot
+        public static final double CLIMB_POS = -30.36; // TODO: measure on robot
         // PID / MotionMagic — tune on robot
         public static final double kP         = 2.0;
         public static final double kD         = 0.0;
@@ -52,11 +59,10 @@ public final class Constants {
 
 
     public static final class IntakeConstants {
-        public static final double STOW = 5.0;
-        public static final double INTAKE_POSITION = 98;
-        public static final double EXTENDED = 94;
-        public static final double JOG_VOLTAGE = 2.3;
-        public static final double ROLLER_VOLTAGE = 8.0;
+        public static final double STOW = 0;
+        public static final double INTAKE_POSITION = 6.4;
+        public static final double JOG_VOLTAGE = 1.0;
+        public static final double ROLLER_VOLTAGE = 5.0;
     }
 
     // AprilTag Alignment PID Constants
@@ -149,8 +155,8 @@ public final class Constants {
 
     public static final class TurretConstants {
         public static final double GEAR_RATIO          = 44.0;
-        public static final double MIN_DEG             = -90.0;
-        public static final double MAX_DEG             =  90.0;
+        public static final double MIN_DEG             = 0; 
+        public static final double MAX_DEG             =  70; 
         public static final double JOG_VOLTAGE         = 2.0;
         public static final double MANUAL_DEADBAND     = 0.08;
         public static final double ANGLE_TOLERANCE_DEG = 1.5;
@@ -168,15 +174,15 @@ public final class Constants {
     }
 
     public static final class ShooterAngleConstants {
-        public static final double MIN_DEG = 10.0;
+        public static final double MIN_DEG = 0;
         public static final double MAX_DEG = 55.0;
-        public static final double DEG_A   = 10.0;
+        public static final double DEG_A   = 0.0;
         public static final double ROT_A   = 0.0;
         public static final double DEG_B   = 55.0;  // TODO: measure on real robot
-        public static final double ROT_B   = 5.25;  // TODO: measure on real robot
+        public static final double ROT_B   = -5.25; // Hood raises as motor rotations decrease
         public static final double M_ROT_PER_DEG = (ROT_B - ROT_A) / (DEG_B - DEG_A);
         public static final double B_ROT         = ROT_A - M_ROT_PER_DEG * DEG_A;
-        public static final double JOG_VOLTAGE         = 2.0;
+        public static final double JOG_VOLTAGE         = 6.0;
         public static final double MANUAL_DEADBAND     = 0.08;
         public static final double ANGLE_TOLERANCE_DEG = 1.0;
         public static final double STATOR_LIMIT_A      = 100.0;
@@ -192,6 +198,37 @@ public final class Constants {
         public static final double JERK_RPS3   = 120.0;
     }
 
+    /**
+     * Distance-to-shooter lookup table.
+     * Maps horizontal distance to target (meters) → shooter voltage and hood angle.
+     * TODO: tune all values on the real robot.
+     */
+    public static final class ShooterTable {
+        private static final InterpolatingDoubleTreeMap VOLTAGE_MAP = new InterpolatingDoubleTreeMap();
+        private static final InterpolatingDoubleTreeMap ANGLE_MAP   = new InterpolatingDoubleTreeMap();
+
+        static {
+            // dist (m) → shooter voltage (V) — matched to measured distances — TODO: tune on robot
+            VOLTAGE_MAP.put(1.30,  8.0); // tune
+            VOLTAGE_MAP.put(1.80,  8.5); // tune
+            VOLTAGE_MAP.put(2.05,  9.0); // tune
+            VOLTAGE_MAP.put(2.27,  9.5); // tune — 11.13V was too high
+            VOLTAGE_MAP.put(3.32, 11.0); // tune
+
+            // dist (m) → hood angle (deg) — increases with distance
+
+            ANGLE_MAP.put(1.30, 18.32); // *measured
+            ANGLE_MAP.put(1.80, 12.0);  // *measured — shot over at 18°, tuned down
+            ANGLE_MAP.put(2.05, 18.32); // *measured
+            ANGLE_MAP.put(2.27, 16.0);  // tuned down from 19.62°
+            ANGLE_MAP.put(3.32, 26.57); // *measured
+            
+        }
+
+        public static double getVoltage(double distM) { return VOLTAGE_MAP.get(distM); }
+        public static double getAngleDeg(double distM) { return ANGLE_MAP.get(distM); }
+    }
+
     public static final class VisionConstants {
         public static final String LIMELIGHT_FRONT   = "limelight-front";
         public static final String LIMELIGHT_SIDE    = "limelight-side";
@@ -204,9 +241,11 @@ public final class Constants {
         public static final int[]  BLUE_HUB_TAG_IDS = {2, 3, 4, 5, 8, 9, 10, 11};
         public static final int[]  RED_HUB_TAG_IDS  = {18, 19, 20, 21, 24, 25, 26, 27};
 
-        // Currently active HUB tags (updated dynamically based on game data)
+        // Use all hub tags until on-field testing confirms which IDs face which direction
         public static final int[]  BLUE_TRACK_TAG_IDS = BLUE_HUB_TAG_IDS;
         public static final int[]  RED_TRACK_TAG_IDS  = RED_HUB_TAG_IDS;
+        public static final int[]  BLUE_FERRY_TAG_IDS = BLUE_HUB_TAG_IDS;
+        public static final int[]  RED_FERRY_TAG_IDS  = RED_HUB_TAG_IDS;
         // 2026 REBUILT specific vision constants
         public static final double MAX_TAG_DIST_M    = 6.0;  // Increased for larger field
         public static final double BASE_STD_DEV      = 0.5;

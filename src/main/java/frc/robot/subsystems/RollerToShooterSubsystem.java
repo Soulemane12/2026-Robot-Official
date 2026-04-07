@@ -18,7 +18,7 @@ public class RollerToShooterSubsystem extends SubsystemBase {
         m_motor = new TalonFX(Constants.CANIds.ROLLER_TO_SHOOTER, frc.robot.generated.TunerConstants.kCANBus);
 
         TalonFXConfiguration config = new TalonFXConfiguration();
-        config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
+        config.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
         m_motor.getConfigurator().apply(config);
     }
 

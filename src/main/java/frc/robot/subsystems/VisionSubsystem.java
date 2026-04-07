@@ -12,8 +12,7 @@ import frc.robot.LimelightHelpers.PoseEstimate;
 
 public class VisionSubsystem extends SubsystemBase {
 
-    private static final String LIMELIGHT_FRONT = Constants.VisionConstants.LIMELIGHT_FRONT;
-    private static final String LIMELIGHT_SIDE  = Constants.VisionConstants.LIMELIGHT_SIDE;
+    private static final String LIMELIGHT = Constants.VisionConstants.LIMELIGHT_TURRET;
 
     // 2026 REBUILT field boundaries in meters (blue origin)
     private static final double FIELD_MAX_X = 16.54;
@@ -35,23 +34,19 @@ public class VisionSubsystem extends SubsystemBase {
         double omegaDeg  = Math.toDegrees(state.Speeds.omegaRadiansPerSecond);
         boolean spinning = Math.abs(omegaDeg) > MAX_OMEGA_DEG_PER_SEC;
 
-        // Feed heading to both localization cameras every frame (required by MegaTag2)
-        LimelightHelpers.SetRobotOrientation(LIMELIGHT_FRONT, yawDeg, 0, 0, 0, 0, 0);
-        LimelightHelpers.SetRobotOrientation(LIMELIGHT_SIDE,  yawDeg, 0, 0, 0, 0, 0);
+        // Feed heading to the single turret Limelight every frame (required by MegaTag2)
+        LimelightHelpers.SetRobotOrientation(LIMELIGHT, yawDeg, 0, 0, 0, 0, 0);
 
         // LL4 IMU mode: seed from external heading while disabled, blend when enabled
         // Requires LimelightHelpers v1.14. If your LimelightHelpers doesn't have SetIMUMode,
         // update to v1.14 from docs.limelightvision.io/docs/resources/downloads
-        setIMUMode(LIMELIGHT_FRONT, DriverStation.isDisabled() ? 1 : 4);
-        setIMUMode(LIMELIGHT_SIDE,  DriverStation.isDisabled() ? 1 : 4);
+        setIMUMode(LIMELIGHT, DriverStation.isDisabled() ? 1 : 4);
 
         if (!spinning) {
-            processEstimate(LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(LIMELIGHT_FRONT), "Front");
-            processEstimate(LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(LIMELIGHT_SIDE),  "Side");
+            processEstimate(LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(LIMELIGHT), "Turret");
         }
 
-        SmartDashboard.putBoolean("Vision/Front/HasTarget", hasValidTarget());
-        SmartDashboard.putBoolean("Vision/Side/HasTarget",  LimelightHelpers.getTV(LIMELIGHT_SIDE));
+        SmartDashboard.putBoolean("Vision/Turret/HasTarget", hasValidTarget());
         SmartDashboard.putBoolean("Vision/Spinning",        spinning);
     }
 
@@ -97,22 +92,22 @@ public class VisionSubsystem extends SubsystemBase {
     }
 
     public boolean hasValidTarget() {
-        return LimelightHelpers.getTV(LIMELIGHT_FRONT);
+        return LimelightHelpers.getTV(LIMELIGHT);
     }
 
     public double getTargetTX() {
-        return LimelightHelpers.getTX(LIMELIGHT_FRONT);
+        return LimelightHelpers.getTX(LIMELIGHT);
     }
 
     public double getTargetTY() {
-        return LimelightHelpers.getTY(LIMELIGHT_FRONT);
+        return LimelightHelpers.getTY(LIMELIGHT);
     }
 
     public double getDistanceToAprilTag() {
         if (!hasValidTarget()) return 0.0;
 
         double[] targetPose = NetworkTableInstance.getDefault()
-            .getTable(LIMELIGHT_FRONT)
+            .getTable(LIMELIGHT)
             .getEntry("targetpose_cameraspace")
             .getDoubleArray(new double[6]);
 
@@ -126,26 +121,26 @@ public class VisionSubsystem extends SubsystemBase {
     }
 
     public void setPipeline(int pipelineIndex) {
-        LimelightHelpers.setPipelineIndex(LIMELIGHT_FRONT, pipelineIndex);
+        LimelightHelpers.setPipelineIndex(LIMELIGHT, pipelineIndex);
     }
 
     public int getPipeline() {
         return (int) NetworkTableInstance.getDefault()
-            .getTable(LIMELIGHT_FRONT)
+            .getTable(LIMELIGHT)
             .getEntry("getpipe")
             .getDouble(0.0);
     }
 
     public void setLEDMode(int mode) {
         NetworkTableInstance.getDefault()
-            .getTable(LIMELIGHT_FRONT)
+            .getTable(LIMELIGHT)
             .getEntry("ledMode")
             .setNumber(mode);
     }
 
     public int getLEDMode() {
         return (int) NetworkTableInstance.getDefault()
-            .getTable(LIMELIGHT_FRONT)
+            .getTable(LIMELIGHT)
             .getEntry("ledMode")
             .getDouble(0.0);
     }
