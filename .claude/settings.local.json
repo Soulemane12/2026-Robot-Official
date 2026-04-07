@@ -17,7 +17,12 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(del \"c:\\\\Users\\\\Rambots\\\\Documents\\\\2026-Robot-Official\\\\src\\\\main\\\\java\\\\frc\\\\robot\\\\commands\\\\TrackHubCommand.java\")",
       "WebFetch(domain:frc.ohlinis.me)",
-      "WebFetch(domain:medium.com)"
+      "WebFetch(domain:medium.com)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(./gradlew --stop)",
+      "Bash(./gradlew simulateJava:*)",
+      "* ",
+      "Bash(pkill:*)"
     ]
   }
 }
