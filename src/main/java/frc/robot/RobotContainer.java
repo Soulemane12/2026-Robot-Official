@@ -107,7 +107,7 @@ public class RobotContainer {
         NamedCommands.registerCommand("rollerToShooterOff", m_rollerToShooter.runOnce(m_rollerToShooter::stop));
 
         autoChooser = AutoBuilder.buildAutoChooser("bitch");
-        autoChooser.setDefaultOption("None", Commands.none());
+        autoChooser.addOption("None", Commands.none());
         autoChooser.addOption("Shoot 3 Balls", Commands.sequence(
             m_shooter.runOnce(m_shooter::start),
             new WaitCommand(1.5),
