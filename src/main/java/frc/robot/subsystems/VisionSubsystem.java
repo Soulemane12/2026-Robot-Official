@@ -22,6 +22,7 @@ public class VisionSubsystem extends SubsystemBase {
     private static final double MAX_OMEGA_DEG_PER_SEC = 360.0;
 
     private final CommandSwerveDrivetrain m_drivetrain;
+    private int m_lastIMUMode = -1;
 
     public VisionSubsystem(CommandSwerveDrivetrain drivetrain) {
         m_drivetrain = drivetrain;
@@ -38,9 +39,12 @@ public class VisionSubsystem extends SubsystemBase {
         LimelightHelpers.SetRobotOrientation(LIMELIGHT, yawDeg, 0, 0, 0, 0, 0);
 
         // LL4 IMU mode: seed from external heading while disabled, blend when enabled
-        // Requires LimelightHelpers v1.14. If your LimelightHelpers doesn't have SetIMUMode,
-        // update to v1.14 from docs.limelightvision.io/docs/resources/downloads
-        setIMUMode(LIMELIGHT, DriverStation.isDisabled() ? 1 : 4);
+        // Only write to NT when mode actually changes to avoid ~4ms NT write every loop
+        int imuMode = DriverStation.isDisabled() ? 1 : 4;
+        if (imuMode != m_lastIMUMode) {
+            setIMUMode(LIMELIGHT, imuMode);
+            m_lastIMUMode = imuMode;
+        }
 
         if (!spinning) {
             processEstimate(LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(LIMELIGHT), "Turret");

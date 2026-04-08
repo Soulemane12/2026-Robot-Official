@@ -13,7 +13,8 @@ public class ShooterSubsystem extends SubsystemBase {
     private final VoltageOut m_voltageOut = new VoltageOut(0.0);
     private boolean m_isRunning = false;
 
-    private static final double SHOOTER_VOLTAGE = 12.0; // tune
+    private static final double SHOOTER_VOLTAGE = 10.0; // reduced from 12V — shots were going over
+    private static final double AT_SPEED_RPS    = 60.0; // ~3600 RPM — raise if still feeding early
 
     public ShooterSubsystem(int motorCanId) {
         m_shooterMotor = new TalonFX(motorCanId, frc.robot.generated.TunerConstants.kCANBus);
@@ -29,7 +30,7 @@ public class ShooterSubsystem extends SubsystemBase {
     public void periodic() {
         // Publish shooter state to SmartDashboard
         SmartDashboard.putBoolean("Shooter/IsRunning", m_isRunning);
-        SmartDashboard.putNumber("Shooter/MotorOutput", m_shooterMotor.get());
+        SmartDashboard.putBoolean("Shooter/AtSpeed",   isAtSpeed());
         SmartDashboard.putNumber("Shooter/Velocity", m_shooterMotor.getVelocity().getValueAsDouble());
     }
 
@@ -68,10 +69,11 @@ public class ShooterSubsystem extends SubsystemBase {
         m_isRunning = false;
     }
 
-    /**
-     * Check if shooter is running
-     */
     public boolean isRunning() {
         return m_isRunning;
+    }
+
+    public boolean isAtSpeed() {
+        return Math.abs(m_shooterMotor.getVelocity().getValueAsDouble()) >= AT_SPEED_RPS;
     }
 }

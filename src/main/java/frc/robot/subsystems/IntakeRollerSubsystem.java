@@ -35,6 +35,11 @@ public class IntakeRollerSubsystem extends SubsystemBase {
         }
     }
 
+    public void reverse() {
+        m_running = false;
+        m_motor.setControl(m_voltageOut.withOutput(-Constants.IntakeConstants.ROLLER_VOLTAGE));
+    }
+
     public void stop() {
         m_running = false;
         m_motor.setControl(m_voltageOut.withOutput(0.0));

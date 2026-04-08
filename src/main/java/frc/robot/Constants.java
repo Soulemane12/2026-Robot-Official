@@ -30,27 +30,11 @@ public final class Constants {
         public static final int TURRET_MOTOR = 26;
         public static final int SHOOTER_ANGLE_MOTOR = 34;
         public static final int ROLLER_TO_SHOOTER = 14;
-        public static final int CLIMBER_MOTOR = 12;
         public static final int INDEXER_MOTOR = 30;
     }
 
     public static final class IndexerConstants {
         public static final double VOLTAGE = -3.0; // tune
-    }
-
-    public static final class ClimberConstants {
-        public static final double CLIMB_VOLTAGE = 6.0;
-        // Position presets (rotations) — jog to find real values, then update these
-        public static final double ZERO_POS  = 0.0;
-        public static final double CLIMB_POS = -30.36; // TODO: measure on robot
-        // PID / MotionMagic — tune on robot
-        public static final double kP         = 2.0;
-        public static final double kD         = 0.0;
-        public static final double kS         = 0.25;
-        public static final double kV         = 0.12;
-        public static final double CRUISE_RPS = 40.0;
-        public static final double ACCEL_RPS2 = 80.0;
-        public static final double JERK_RPS3  = 400.0;
     }
 
     public static final class RollerToShooterConstants {
@@ -60,9 +44,9 @@ public final class Constants {
 
     public static final class IntakeConstants {
         public static final double STOW = 0;
-        public static final double INTAKE_POSITION = 15;
+        public static final double INTAKE_POSITION = 15.4;
         public static final double JOG_VOLTAGE = 2.0;
-        public static final double ROLLER_VOLTAGE = 5.0;
+        public static final double ROLLER_VOLTAGE = 9.0;
     }
 
     // AprilTag Alignment PID Constants
@@ -209,20 +193,22 @@ public final class Constants {
 
         static {
             // dist (m) → shooter voltage (V) — matched to measured distances — TODO: tune on robot
-            VOLTAGE_MAP.put(1.30,  6.5); // tune
+            VOLTAGE_MAP.put(1.328, 7.5); // measured — 6.53V too low, increased
             VOLTAGE_MAP.put(1.80,  7.0); // tune
             VOLTAGE_MAP.put(2.05,  8.5); // tune
             VOLTAGE_MAP.put(2.27,  9.5); // tune — 11.13V was too high
-            VOLTAGE_MAP.put(2.44,  9.8); // measured
+            VOLTAGE_MAP.put(2.44,  9.8);  // measured
+            VOLTAGE_MAP.put(2.91, 10.0); // 10.78V was too high — tuned down
             VOLTAGE_MAP.put(3.32, 11.5); // tune
 
             // dist (m) → hood angle (deg) — increases with distance
 
-            ANGLE_MAP.put(1.30, 18.32); // *measured
+            ANGLE_MAP.put(1.328, 17.934); // measured
             ANGLE_MAP.put(1.80, 12.0);  // *measured — shot over at 18°, tuned down
             ANGLE_MAP.put(2.05, 18.32); // *measured
             ANGLE_MAP.put(2.27, 16.0);  // tuned down from 19.62°
             ANGLE_MAP.put(2.44, 17.78); // measured
+            ANGLE_MAP.put(2.91, 22.686); // measured
             ANGLE_MAP.put(3.32, 26.57); // *measured
             
             
@@ -230,6 +216,11 @@ public final class Constants {
 
         public static double getVoltage(double distM) { return VOLTAGE_MAP.get(distM); }
         public static double getAngleDeg(double distM) { return ANGLE_MAP.get(distM); }
+    }
+
+    public static final class FerryConstants {
+        public static final double VOLTAGE   = 5.0;   // half speed — tune
+        public static final double ANGLE_DEG = 10.0;  // TODO: tune via manual movement
     }
 
     public static final class VisionConstants {

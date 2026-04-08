@@ -220,11 +220,7 @@ public class TurretSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        BaseStatusSignal.refreshAll(
-            m_motor.getPosition(),
-            m_motor.getVelocity(),
-            m_motor.getSupplyCurrent()
-        );
+        // CANivore signals auto-update asynchronously — no refreshAll() needed
         m_cachedRotations = m_motor.getPosition().getValueAsDouble();
         SmartDashboard.putNumber("Turret/AngleDeg", getAngleDeg());
         SmartDashboard.putNumber("Turret/MotorRot", getMotorRot());

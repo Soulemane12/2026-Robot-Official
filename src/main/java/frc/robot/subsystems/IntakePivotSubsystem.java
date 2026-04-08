@@ -14,7 +14,7 @@ import frc.robot.Constants;
 
 public class IntakePivotSubsystem extends SubsystemBase {
     private static final double DEPLOYED_TARGET_MIN_ROT = 5.0;
-    private static final double DEPLOYED_STALL_MARGIN_ROT = 0.25;
+    private static final double DEPLOYED_STALL_MARGIN_ROT = 0.08;
     private static final double LOWER_LIMIT_ROT = 0.67;
     private static final double STOW_STOP_MARGIN_ROT = 0.20;
     private static final double STALL_VELOCITY_RPS = 1.0;
@@ -37,7 +37,7 @@ public class IntakePivotSubsystem extends SubsystemBase {
 
         // Slot0 PID gains for MotionMagic — tune these on the real robot
         Slot0Configs slot0 = new Slot0Configs()
-            .withKP(2.0)    // Proportional gain (lowered to reduce harshness)
+            .withKP(3.0)    // Proportional gain
             .withKI(0.0)    // Integral gain
             .withKD(0.08)   // Derivative gain to reduce overshoot
             .withKS(0.25)   // Static feedforward (volts to overcome friction)
@@ -46,9 +46,9 @@ public class IntakePivotSubsystem extends SubsystemBase {
         config.Slot0 = slot0;
 
         MotionMagicConfigs mmConfig = new MotionMagicConfigs()
-            .withMotionMagicCruiseVelocity(15.0)
-            .withMotionMagicAcceleration(30.0)
-            .withMotionMagicJerk(150.0);
+            .withMotionMagicCruiseVelocity(30.0)
+            .withMotionMagicAcceleration(60.0)
+            .withMotionMagicJerk(300.0);
         config.MotionMagic = mmConfig;
 
         // Current limits to prevent stalling against hard stops

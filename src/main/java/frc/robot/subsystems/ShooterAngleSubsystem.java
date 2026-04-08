@@ -1,6 +1,5 @@
 package frc.robot.subsystems;
 
-import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
@@ -49,10 +48,13 @@ public class ShooterAngleSubsystem extends SubsystemBase {
         cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable = false;
         cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = false;
 
-        m_motor.getConfigurator().apply(cfg);
+        // Blocking apply — waits up to 100ms for the motor to confirm config before
+        // MotionMagic starts running on first enable (prevents boot oscillation)
+        m_motor.getConfigurator().apply(cfg, 0.100);
 
         // Boot assumption: hood is physically at MIN_DEG / Point A before power-on
-        m_motor.setPosition(Constants.ShooterAngleConstants.ROT_A);
+        // Blocking setPosition — waits up to 50ms for confirmation before default command runs
+        m_motor.setPosition(Constants.ShooterAngleConstants.ROT_A, 0.050);
 
         ShuffleboardTab tab = Shuffleboard.getTab("Shooting");
         tab.addDouble("Hood Angle (deg)", this::getAngleDeg) .withPosition(0, 1).withSize(2, 1);
@@ -105,11 +107,7 @@ public class ShooterAngleSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        BaseStatusSignal.refreshAll(
-            m_motor.getPosition(),
-            m_motor.getVelocity(),
-            m_motor.getSupplyCurrent()
-        );
+        // CANivore signals auto-update asynchronously — no refreshAll() needed
         m_cachedRotations = m_motor.getPosition().getValueAsDouble();
         SmartDashboard.putNumber("ShooterAngle/Deg", getAngleDeg());
         SmartDashboard.putNumber("ShooterAngle/MotorRot", getMotorRot());

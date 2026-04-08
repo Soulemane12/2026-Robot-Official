@@ -28,7 +28,6 @@ import frc.robot.subsystems.IntakeRollerSubsystem;
 import frc.robot.subsystems.RollerToShooterSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.ShooterAngleSubsystem;
-import frc.robot.subsystems.ClimberSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
@@ -68,7 +67,6 @@ public class RobotContainer {
     private final RollerToShooterSubsystem m_rollerToShooter = new RollerToShooterSubsystem();
     private final TurretSubsystem m_turret = new TurretSubsystem();
     private final ShooterAngleSubsystem m_shooterAngle = new ShooterAngleSubsystem();
-    private final ClimberSubsystem m_climber = new ClimberSubsystem();
     private final IndexerSubsystem m_indexer = new IndexerSubsystem();
 
     private boolean m_intakeDeployed = false;
@@ -116,7 +114,13 @@ public class RobotContainer {
         NamedCommands.registerCommand("rollerToShooterOn",  m_rollerToShooter.runOnce(m_rollerToShooter::start));
         NamedCommands.registerCommand("rollerToShooterOff", m_rollerToShooter.runOnce(m_rollerToShooter::stop));
 
-        autoChooser = AutoBuilder.buildAutoChooser("bitch");
+        // Waits until shooter flywheel is up to speed before feeding balls — 3s safety timeout
+        NamedCommands.registerCommand("waitForShooterReady",
+            m_shooter.run(() -> {})
+                     .until(m_shooter::isAtSpeed)
+                     .withTimeout(3.0));
+
+        autoChooser = AutoBuilder.buildAutoChooser("bit101");
         autoChooser.addOption("None", Commands.none());
         autoChooser.addOption("Shoot 3 Balls", Commands.sequence(
             m_shooter.runOnce(m_shooter::start),
@@ -149,9 +153,6 @@ public class RobotContainer {
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
-        // Zero climber encoder every time the robot is enabled
-        RobotModeTriggers.disabled().onFalse(m_climber.runOnce(m_climber::zero));
-
         // --- Driver ---
         driver.a().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));   // reset gyro
         driver.b().onTrue(m_turret.runOnce(m_turret::zeroHere));              // zero turret
@@ -162,9 +163,6 @@ public class RobotContainer {
             forwardStraight.withVelocityX(0.5).withVelocityY(0)));
         driver.povDown().whileTrue(drivetrain.applyRequest(() ->
             forwardStraight.withVelocityX(-0.5).withVelocityY(0)));
-
-        driver.leftTrigger(0.1).whileTrue(m_climber.startEnd(m_climber::retract, m_climber::stop));
-        driver.rightTrigger(0.1).whileTrue(m_climber.startEnd(m_climber::extend, m_climber::stop));
 
         // --- Operator ---
         // Y: re-zero intake pivot encoder
@@ -178,26 +176,49 @@ public class RobotContainer {
                 : Constants.IntakeConstants.STOW);
         }));
 
-        // LT: intake roller + roller-to-shooter + indexer all toggle
-        operator.leftTrigger(0.1).onTrue(Commands.parallel(
-            m_intakeRoller.runOnce(m_intakeRoller::toggle),
-            m_indexer.runOnce(m_indexer::toggle)
+        // LT: hold to run intake roller + indexer, release to stop
+        // (rollerToShooter excluded so LT + A can run simultaneously)
+        operator.leftTrigger(0.1).whileTrue(Commands.parallel(
+            m_intakeRoller.startEnd(m_intakeRoller::start, m_intakeRoller::stop),
+            m_indexer.startEnd(m_indexer::start, m_indexer::stop)
         ));
 
-        // RB: hold to auto-aim (turret tracking + hood angle from distance table)
-        // Shooter stays on RT. Drivetrain locked to brake while held.
-        operator.rightBumper().whileTrue(new AutoAimCommand(m_turret, m_shooterAngle, m_shooter));
-        operator.rightBumper().onFalse(Commands.parallel(
-            m_turret.runOnce(() -> m_turret.setAngleDeg(0.0)),
-            m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(0.0))
+        // RB: hold to outtake (intake roller + indexer run in reverse), release to stop
+        operator.rightBumper().whileTrue(Commands.parallel(
+            m_intakeRoller.startEnd(m_intakeRoller::reverse, m_intakeRoller::stop),
+            m_indexer.startEnd(m_indexer::reverse, m_indexer::stop)
         ));
 
-        // RT: shooter toggle
-        operator.rightTrigger(0.1).whileTrue(Commands.parallel(
-           
-            (m_shooter.runOnce(m_shooter::toggle)),
-         
-            m_rollerToShooter.runOnce(m_rollerToShooter::toggle)
+        // B alone: ferry position — turret → 0, hood → ferry angle, NO flywheel
+        operator.b().and(operator.a().negate()).whileTrue(Commands.parallel(
+            m_shooterAngle.run(() -> m_shooterAngle.setAngleDeg(Constants.FerryConstants.ANGLE_DEG)),
+            m_turret.run(() -> m_turret.setAngleDeg(0.0))
+        ));
+
+        // B + A: ferry shoot — flywheel at half speed + feed
+        operator.b().and(operator.a()).whileTrue(Commands.parallel(
+            m_shooter.run(() -> m_shooter.setVoltage(Constants.FerryConstants.VOLTAGE))
+                     .finallyDo(m_shooter::stop),
+            m_shooterAngle.run(() -> m_shooterAngle.setAngleDeg(Constants.FerryConstants.ANGLE_DEG)),
+            m_turret.run(() -> m_turret.setAngleDeg(0.0)),
+            m_rollerToShooter.startEnd(m_rollerToShooter::start, m_rollerToShooter::stop)
+        ));
+
+        // RT alone: auto-aim (turret tracks + hood by distance), NO flywheel
+        operator.rightTrigger(0.1).and(operator.a().negate()).whileTrue(
+            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter)
+        );
+
+        // RT + A: auto-aim shoot — flywheel at table voltage + feed
+        operator.rightTrigger(0.1).and(operator.a()).whileTrue(Commands.parallel(
+            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter),
+            m_shooter.run(() -> {
+                double dist = m_turret.getDistanceToTargetM();
+                m_shooter.setVoltage(dist > 0.0
+                    ? Constants.ShooterTable.getVoltage(dist)
+                    : 10.0);
+            }).finallyDo(m_shooter::stop),
+            m_rollerToShooter.startEnd(m_rollerToShooter::start, m_rollerToShooter::stop)
         ));
 
 

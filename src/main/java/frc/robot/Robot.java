@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.HttpCamera;
 import edu.wpi.first.net.PortForwarder;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -15,16 +17,19 @@ public class Robot extends TimedRobot {
   private Command m_autonomousCommand;
 
   private final RobotContainer m_robotContainer;
+  private final HttpCamera m_turretLimelightCamera;
 
   public Robot() {
     m_robotContainer = new RobotContainer();
+    m_turretLimelightCamera =
+        new HttpCamera(
+            "Limelight Turret",
+            "http://" + Constants.VisionConstants.LIMELIGHT_TURRET + ".local:5800/stream.mjpg");
+    CameraServer.startAutomaticCapture(m_turretLimelightCamera);
 
-    // Set up port forwarding for Limelight
-    // This allows you to access the Limelight web interface through the roboRIO
-    // IMPORTANT: Change "limelight.local" to match your Limelight's name!
-    // e.g., "limelight-a.local", "limelight-b.local", etc.
+    // Forward the turret Limelight web ports through the roboRIO for diagnostics.
     for (int port = 5800; port <= 5809; port++) {
-      PortForwarder.add(port, "limelight.local", port);
+      PortForwarder.add(port, Constants.VisionConstants.LIMELIGHT_TURRET + ".local", port);
     }
   }
 

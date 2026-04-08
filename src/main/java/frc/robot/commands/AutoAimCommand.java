@@ -17,8 +17,9 @@ public class AutoAimCommand extends Command {
     private final ShooterAngleSubsystem m_angle;
     private final ShooterSubsystem m_shooter; // read-only, not required
 
-    private static final double DIST_HYSTERESIS_M = 0.05; // min distance change to update hood/voltage
+    private static final double DIST_HYSTERESIS_M = 0.15; // min distance change to update hood angle
     private double m_lastDistM = -1.0;
+    private double m_lastAngleDeg = Double.NaN;
 
     public AutoAimCommand(TurretSubsystem turret, ShooterAngleSubsystem angle, ShooterSubsystem shooter) {
         m_turret  = turret;
@@ -30,7 +31,8 @@ public class AutoAimCommand extends Command {
     @Override
     public void initialize() {
         m_turret.configureTrackingPipelineAndFilters();
-        m_lastDistM = -1.0;
+        m_lastDistM   = -1.0;
+        m_lastAngleDeg = Double.NaN;
     }
 
     @Override
@@ -40,18 +42,16 @@ public class AutoAimCommand extends Command {
         if (m_turret.hasTarget()) {
             double dist = m_turret.getDistanceToTargetM();
             if (dist > 0.0) {
-                // Hysteresis: only update hood/voltage if distance changed enough.
-                // Prevents noisy limelight distance from causing hood oscillation.
+                // Only update angle when distance changes by more than the threshold.
+                // This locks in the computed angle and stops it from drifting with sensor noise.
                 if (m_lastDistM < 0.0 || Math.abs(dist - m_lastDistM) > DIST_HYSTERESIS_M) {
-                    m_lastDistM = dist;
+                    m_lastDistM    = dist;
+                    m_lastAngleDeg = Constants.ShooterTable.getAngleDeg(m_lastDistM);
+                    m_angle.setAngleDeg(m_lastAngleDeg);
+                    SmartDashboard.putNumber("AutoAim/DistM",    m_lastDistM);
+                    SmartDashboard.putNumber("AutoAim/AngleDeg", m_lastAngleDeg);
                 }
-                double angleDeg = Constants.ShooterTable.getAngleDeg(m_lastDistM);
-                double voltage  = Constants.ShooterTable.getVoltage(m_lastDistM);
-                m_angle.setAngleDeg(angleDeg);
-                m_shooter.setVoltage(voltage);
-                SmartDashboard.putNumber("AutoAim/DistM",        dist);
-                SmartDashboard.putNumber("AutoAim/AngleDeg",     angleDeg);
-                SmartDashboard.putNumber("AutoAim/ShooterVolts", voltage);
+                // Angle is already locked — no setAngleDeg call every loop
             }
         }
 

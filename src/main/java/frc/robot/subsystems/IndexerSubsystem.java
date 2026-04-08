@@ -18,6 +18,11 @@ public class IndexerSubsystem extends SubsystemBase {
         m_motor.setControl(m_voltageOut.withOutput(Constants.IndexerConstants.VOLTAGE));
     }
 
+    public void reverse() {
+        m_running = false;
+        m_motor.setControl(m_voltageOut.withOutput(-Constants.IndexerConstants.VOLTAGE));
+    }
+
     public void stop() {
         m_running = false;
         m_motor.setControl(m_voltageOut.withOutput(0.0));
