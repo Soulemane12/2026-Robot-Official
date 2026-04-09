@@ -139,6 +139,25 @@ public class RobotContainer {
             m_shooter.runOnce(m_shooter::stop)
         ));
 
+        autoChooser.addOption("8 Ball Auto", Commands.sequence(
+            AutoBuilder.buildAuto("8 ball path"),
+            Commands.deadline(
+                Commands.sequence(
+                    new WaitCommand(0.7),
+                    Commands.parallel(
+                        m_rollerToShooter.startEnd(m_rollerToShooter::start, m_rollerToShooter::stop),
+                        m_indexer.startEnd(m_indexer::start, m_indexer::stop)
+                    ).withTimeout(10.0)
+                ),
+                new AutoAimCommand(m_turret, m_shooterAngle, m_shooter),
+                m_shooter.startEnd(m_shooter::start, m_shooter::stop)
+            ),
+            Commands.parallel(
+                m_turret.runOnce(() -> m_turret.setAngleDeg(0.0)),
+                m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(0.0))
+            )
+        ));
+
         configureBindings();
         FollowPathCommand.warmupCommand().schedule();
 
