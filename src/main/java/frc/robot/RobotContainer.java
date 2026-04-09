@@ -33,6 +33,7 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.auto.NamedCommands;
 import frc.robot.commands.AutoAimCommand;
+import frc.robot.commands.FerryAutoAimCommand;
 
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
@@ -194,18 +195,16 @@ public class RobotContainer {
             m_indexer.startEnd(m_indexer::reverse, m_indexer::stop)
         ));
 
-        // B alone: ferry position — turret → 0, hood → ferry angle, NO flywheel
-        operator.b().and(operator.a().negate()).whileTrue(Commands.parallel(
-            m_shooterAngle.run(() -> m_shooterAngle.setAngleDeg(Constants.FerryConstants.ANGLE_DEG)),
-            m_turret.run(() -> m_turret.setAngleDeg(0.0))
-        ));
+        // B alone: ferry auto-aim position — vision tracks tag with offset, NO flywheel
+        operator.b().and(operator.a().negate()).whileTrue(
+            new FerryAutoAimCommand(m_turret, m_shooterAngle)
+        );
 
-        // B + A: ferry shoot — flywheel at half speed + feed
+        // B + A: ferry shoot with auto-aim — vision tracks + flywheel + feed
         operator.b().and(operator.a()).whileTrue(Commands.parallel(
+            new FerryAutoAimCommand(m_turret, m_shooterAngle),
             m_shooter.run(() -> m_shooter.setVoltage(Constants.FerryConstants.VOLTAGE))
                      .finallyDo(m_shooter::stop),
-            m_shooterAngle.run(() -> m_shooterAngle.setAngleDeg(Constants.FerryConstants.ANGLE_DEG)),
-            m_turret.run(() -> m_turret.setAngleDeg(0.0)),
             m_rollerToShooter.startEnd(m_rollerToShooter::start, m_rollerToShooter::stop)
         ));
 

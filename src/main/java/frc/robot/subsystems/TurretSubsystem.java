@@ -115,6 +115,12 @@ public class TurretSubsystem extends SubsystemBase {
 
     public boolean isFerryMode() { return m_ferryMode; }
 
+    public void setFerryMode(boolean ferryMode) {
+        m_ferryMode = ferryMode;
+    }
+
+    public int getLockedTagId() { return m_lockedTagId; }
+
     public boolean hasTarget() {
         return LimelightHelpers.getTV(Constants.VisionConstants.LIMELIGHT_TURRET);
     }
@@ -167,7 +173,20 @@ public class TurretSubsystem extends SubsystemBase {
         }
     }
 
+    /**
+     * Gets the ferry-specific turret offset for the currently locked AprilTag.
+     * @return Offset in degrees (positive = right, negative = left), or 0.0 if no tag locked
+     */
+    public double getFerryOffsetForCurrentTag() {
+        if (m_lockedTagId < 0) return 0.0;
+        return Constants.VisionConstants.FERRY_TAG_OFFSETS.getOrDefault(m_lockedTagId, 0.0);
+    }
+
     public void aimAtAprilTag() {
+        aimAtAprilTag(false);
+    }
+
+    public void aimAtAprilTag(boolean useFerryOffset) {
         int tagId = (int) LimelightHelpers.getFiducialID(Constants.VisionConstants.LIMELIGHT_TURRET);
         boolean tagAllowed = Arrays.stream(m_allowedTagIds).anyMatch(id -> id == tagId);
         if (!hasTarget() || !tagAllowed) {
@@ -190,7 +209,9 @@ public class TurretSubsystem extends SubsystemBase {
 
         // Use dashboard tuning values
         double deadband = SmartDashboard.getNumber("Turret/TxDeadband", Constants.VisionConstants.TX_DEADBAND_DEG);
-        double offset = SmartDashboard.getNumber("Turret/TrackingOffset", Constants.VisionConstants.TRACKING_ZERO_OFFSET_DEG);
+        double offset = useFerryOffset
+            ? getFerryOffsetForCurrentTag()
+            : SmartDashboard.getNumber("Turret/TrackingOffset", Constants.VisionConstants.TRACKING_ZERO_OFFSET_DEG);
 
         if (Math.abs(tx) < deadband) tx = 0.0;
 

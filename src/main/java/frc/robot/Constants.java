@@ -2,6 +2,7 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
+import java.util.Map;
 import java.util.Optional;
 
 import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
@@ -232,14 +233,24 @@ public final class Constants {
         public static final double TRACKING_ZERO_OFFSET_DEG  = 0.0;
         public static final double TX_DEADBAND_DEG   = 0.7;
         // HUB AprilTag IDs for 2026 REBUILT - all faces of the HUB
-        public static final int[]  BLUE_HUB_TAG_IDS = {2, 3, 4, 5, 8, 9, 10, 11};
-        public static final int[]  RED_HUB_TAG_IDS  = {18, 19, 20, 21, 24, 25, 26, 27};
+        public static final int[] BLUE_HUB_TAG_IDS = {18, 19, 20, 21, 24, 25, 26, 27};
+public static final int[] RED_HUB_TAG_IDS  = {2, 3, 4, 5, 8, 9, 10, 11};
 
         // Use all hub tags until on-field testing confirms which IDs face which direction
         public static final int[]  BLUE_TRACK_TAG_IDS = BLUE_HUB_TAG_IDS;
         public static final int[]  RED_TRACK_TAG_IDS  = RED_HUB_TAG_IDS;
-        public static final int[]  BLUE_FERRY_TAG_IDS = BLUE_HUB_TAG_IDS;
-        public static final int[]  RED_FERRY_TAG_IDS  = RED_HUB_TAG_IDS;
+        // Ferry mode uses specific alliance zone tags
+        public static final int[]  BLUE_FERRY_TAG_IDS = {19, 20};
+        public static final int[]  RED_FERRY_TAG_IDS  = {3, 4};
+
+        // Ferry turret offsets by tag ID (degrees)
+        // Positive = right of center, Negative = left of center
+        public static final Map<Integer, Double> FERRY_TAG_OFFSETS = Map.of(
+            20, 15.0,   // Blue - right of tag 20
+            19, -15.0,  // Blue - left of tag 19
+            3, -15.0,   // Red - left of tag 3
+            4, 15.0     // Red - right of tag 4
+        );
         // 2026 REBUILT specific vision constants
         public static final double MAX_TAG_DIST_M    = 6.0;  // Increased for larger field
         public static final double BASE_STD_DEV      = 0.5;
