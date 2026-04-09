@@ -5,22 +5,9 @@
     "data": {
       "commands": [
         {
-          "type": "deadline",
+          "type": "path",
           "data": {
-            "commands": [
-              {
-                "type": "path",
-                "data": {
-                  "pathName": "8ball"
-                }
-              },
-              {
-                "type": "named",
-                "data": {
-                  "name": "shooterOn"
-                }
-              }
-            ]
+            "pathName": "8ball"
           }
         },
         {
@@ -30,13 +17,19 @@
               {
                 "type": "wait",
                 "data": {
-                  "waitTime": 10.0
+                  "waitTime": 10.7
                 }
               },
               {
                 "type": "named",
                 "data": {
                   "name": "autoAim"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "shooterOn"
                 }
               },
               {
