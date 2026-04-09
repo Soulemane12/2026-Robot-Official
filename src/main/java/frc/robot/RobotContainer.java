@@ -74,7 +74,12 @@ public class RobotContainer {
     public RobotContainer() {
         // Register named commands BEFORE building auto chooser
         // Shooter
-        NamedCommands.registerCommand("shooterOn",  m_shooter.runOnce(m_shooter::start));
+        NamedCommands.registerCommand("shooterOn", m_shooter.run(() -> {
+            double dist = m_turret.getDistanceToTargetM();
+            m_shooter.setVoltage(dist > 0.0
+                ? Constants.ShooterTable.getVoltage(dist)
+                : 10.0);
+        }));
         NamedCommands.registerCommand("shooterOff", m_shooter.runOnce(m_shooter::stop));
 
         NamedCommands.registerCommand("autoAim",
