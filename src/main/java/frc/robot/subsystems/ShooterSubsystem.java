@@ -76,4 +76,12 @@ public class ShooterSubsystem extends SubsystemBase {
     public boolean isAtSpeed() {
         return Math.abs(m_shooterMotor.getVelocity().getValueAsDouble()) >= AT_SPEED_RPS;
     }
+
+    /**
+     * Get the current voltage applied to the shooter motor
+     * (used by simulation for realistic fuel launching)
+     */
+    public double getMotorVoltage() {
+        return m_shooterMotor.getMotorVoltage().getValueAsDouble();
+    }
 }

@@ -290,10 +290,10 @@ public class RobotContainer {
         m_lastFuelLaunchTime = currentTime;
 
         // Get shooter parameters for launch
-        // Estimate velocity from shooter motor voltage (rough approximation)
+        // Estimate velocity from actual shooter motor voltage
         // Typical shooter: 10-12V → ~15-20 m/s exit velocity
-        double shooterVoltage = Math.abs(m_shooter.isRunning() ? 10.0 : 0.0);
-        double launchVelocity = shooterVoltage * 1.7; // Rough conversion: 10V → 17 m/s
+        double shooterVoltage = Math.abs(m_shooter.getMotorVoltage());
+        double launchVelocity = shooterVoltage * 1.7; // Rough conversion: 10V → 17 m/s, 12V → 20.4 m/s
 
         // Get hood angle from ShooterAngleSubsystem
         double hoodAngleDeg = m_shooterAngle.getAngleDeg();
@@ -308,5 +308,11 @@ public class RobotContainer {
             Degrees.of(turretAngleDeg),
             Meters.of(0.4) // Launch height above ground (shooter exit point)
         );
+
+        // Publish to SmartDashboard for debugging
+        SmartDashboard.putNumber("FuelSim/LastLaunchVelocity", launchVelocity);
+        SmartDashboard.putNumber("FuelSim/LastLaunchAngle", hoodAngleDeg);
+        SmartDashboard.putNumber("FuelSim/LastTurretAngle", turretAngleDeg);
+        SmartDashboard.putNumber("FuelSim/LaunchCount", currentTime); // Use time as a changing indicator
     }
 }
