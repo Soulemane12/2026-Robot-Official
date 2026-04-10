@@ -187,12 +187,22 @@ public class TurretSubsystem extends SubsystemBase {
     }
 
     public void aimAtAprilTag(boolean useFerryOffset) {
-        int tagId = (int) LimelightHelpers.getFiducialID(Constants.VisionConstants.LIMELIGHT_TURRET);
-        boolean tagAllowed = Arrays.stream(m_allowedTagIds).anyMatch(id -> id == tagId);
-        if (!hasTarget() || !tagAllowed) {
+        if (!hasTarget()) {
             SmartDashboard.putBoolean("Turret/AimHasTarget", false);
-            m_lockedTagId = -1; // lost target — unlock so next valid tag is picked up
+            m_lockedTagId = -1;
             return;
+        }
+
+        int tagId = (int) LimelightHelpers.getFiducialID(Constants.VisionConstants.LIMELIGHT_TURRET);
+
+        // Ferry mode: only track alliance-specific tags; normal mode: track any visible tag
+        if (useFerryOffset) {
+            boolean tagAllowed = Arrays.stream(m_allowedTagIds).anyMatch(id -> id == tagId);
+            if (!tagAllowed) {
+                SmartDashboard.putBoolean("Turret/AimHasTarget", false);
+                m_lockedTagId = -1;
+                return;
+            }
         }
 
         // Lock onto the first valid tag seen; ignore other tags while locked.

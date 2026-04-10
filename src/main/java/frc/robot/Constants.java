@@ -140,8 +140,8 @@ public final class Constants {
 
     public static final class TurretConstants {
         public static final double GEAR_RATIO          = 44.0;
-        public static final double MIN_DEG             = 0; 
-        public static final double MAX_DEG             =  70; 
+        public static final double MIN_DEG             = -180; 
+        public static final double MAX_DEG             =  60; 
         public static final double JOG_VOLTAGE         = 2.0;
         public static final double MANUAL_DEADBAND     = 0.08;
         public static final double ANGLE_TOLERANCE_DEG = 1.5;
@@ -215,8 +215,20 @@ public final class Constants {
             
         }
 
-        public static double getVoltage(double distM) { return VOLTAGE_MAP.get(distM); }
+        // dist (m) → time of flight (s) — physics estimates at ~8 m/s exit velocity
+        // Tune: shoot while stationary to verify, then drive sideways and adjust
+        public static final InterpolatingDoubleTreeMap SHOT_TIME_MAP = new InterpolatingDoubleTreeMap();
+        static {
+            SHOT_TIME_MAP.put(1.5, 0.18);
+            SHOT_TIME_MAP.put(2.0, 0.23);
+            SHOT_TIME_MAP.put(2.5, 0.28);
+            SHOT_TIME_MAP.put(3.0, 0.34);
+            SHOT_TIME_MAP.put(3.5, 0.40);
+        }
+
+        public static double getVoltage(double distM)  { return VOLTAGE_MAP.get(distM); }
         public static double getAngleDeg(double distM) { return ANGLE_MAP.get(distM); }
+        public static double getShotTime(double distM) { return SHOT_TIME_MAP.get(distM); }
     }
 
     public static final class FerryConstants {

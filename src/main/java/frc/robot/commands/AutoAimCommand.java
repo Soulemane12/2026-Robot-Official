@@ -42,17 +42,19 @@ public class AutoAimCommand extends Command {
         if (m_turret.hasTarget()) {
             double dist = m_turret.getDistanceToTargetM();
             if (dist > 0.0) {
-                // Only update angle when distance changes by more than the threshold.
-                // This locks in the computed angle and stops it from drifting with sensor noise.
+                // Only recompute the angle when distance changes significantly (reduces noise-driven updates)
                 if (m_lastDistM < 0.0 || Math.abs(dist - m_lastDistM) > DIST_HYSTERESIS_M) {
                     m_lastDistM    = dist;
                     m_lastAngleDeg = Constants.ShooterTable.getAngleDeg(m_lastDistM);
-                    m_angle.setAngleDeg(m_lastAngleDeg);
                     SmartDashboard.putNumber("AutoAim/DistM",    m_lastDistM);
                     SmartDashboard.putNumber("AutoAim/AngleDeg", m_lastAngleDeg);
                 }
-                // Angle is already locked — no setAngleDeg call every loop
             }
+        }
+        // Always re-send the locked angle every loop — prevents hood from drifting
+        // between threshold crossings or when target is briefly lost
+        if (!Double.isNaN(m_lastAngleDeg)) {
+            m_angle.setAngleDeg(m_lastAngleDeg);
         }
 
         // On target = limelight TX error is within 2x the deadband
