@@ -5,12 +5,6 @@
     "data": {
       "commands": [
         {
-          "type": "path",
-          "data": {
-            "pathName": "8ball"
-          }
-        },
-        {
           "type": "race",
           "data": {
             "commands": [
@@ -109,6 +103,12 @@
                 }
               }
             ]
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Left_Path"
           }
         }
       ]
