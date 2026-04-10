@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.*;
+
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.HttpCamera;
 import edu.wpi.first.net.PortForwarder;
@@ -12,12 +14,14 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.util.FuelSim;
 
 public class Robot extends TimedRobot {
   private Command m_autonomousCommand;
 
   private final RobotContainer m_robotContainer;
   private final HttpCamera m_turretLimelightCamera;
+  private final FuelSim m_fuelSim = new FuelSim();
 
   public Robot() {
     m_robotContainer = new RobotContainer();
@@ -89,5 +93,26 @@ public class Robot extends TimedRobot {
   public void testExit() {}
 
   @Override
-  public void simulationPeriodic() {}
+  public void simulationInit() {
+    // Register the robot dimensions and pose suppliers with FuelSim
+    // Robot is approximately 30" x 30" (0.762m x 0.762m) based on module positions
+    m_fuelSim.registerRobot(
+        Meters.of(0.762),  // width
+        Meters.of(0.762),  // length
+        Meters.of(0.25),   // bumper height
+        () -> m_robotContainer.drivetrain.getState().Pose,
+        () -> m_robotContainer.drivetrain.getState().Speeds
+    );
+
+    // Spawn starting fuel pieces on the field
+    m_fuelSim.spawnStartingFuel();
+
+    // Start the simulation
+    m_fuelSim.start();
+  }
+
+  @Override
+  public void simulationPeriodic() {
+    m_fuelSim.updateSim();
+  }
 }

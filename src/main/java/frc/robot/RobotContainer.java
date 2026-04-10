@@ -126,7 +126,7 @@ public class RobotContainer {
                      .until(m_shooter::isAtSpeed)
                      .withTimeout(3.0));
 
-        autoChooser = AutoBuilder.buildAutoChooser("bit101");
+        autoChooser = AutoBuilder.buildAutoChooser("Left");
         autoChooser.addOption("None", Commands.none());
         autoChooser.addOption("Shoot 3 Balls", Commands.sequence(
             m_shooter.runOnce(m_shooter::start),
