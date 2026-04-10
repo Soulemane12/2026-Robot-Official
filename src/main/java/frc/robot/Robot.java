@@ -114,5 +114,6 @@ public class Robot extends TimedRobot {
   @Override
   public void simulationPeriodic() {
     m_fuelSim.updateSim();
+    m_robotContainer.updateShooterSim(m_fuelSim);
   }
 }

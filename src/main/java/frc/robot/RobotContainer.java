@@ -6,6 +6,8 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
+import frc.robot.util.FuelSim;
+
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
@@ -71,6 +73,10 @@ public class RobotContainer {
     private final IndexerSubsystem m_indexer = new IndexerSubsystem();
 
     private boolean m_intakeDeployed = false;
+
+    // Simulation: track last fuel launch time to simulate ball feed rate
+    private double m_lastFuelLaunchTime = 0.0;
+    private static final double FUEL_LAUNCH_PERIOD_SEC = 0.5; // Launch one ball every 0.5 seconds
 
     public RobotContainer() {
         // Register named commands BEFORE building auto chooser
@@ -264,5 +270,43 @@ public class RobotContainer {
 
     public Command getAutonomousCommand() {
         return autoChooser.getSelected();
+    }
+
+    /**
+     * Updates the fuel simulator when shooting in simulation.
+     * Launches fuel when the shooter is running and the feeder is active.
+     */
+    public void updateShooterSim(FuelSim fuelSim) {
+        // Only launch fuel if shooter and feeder are both running
+        if (!m_shooter.isRunning() || !m_rollerToShooter.isRunning()) {
+            return;
+        }
+
+        // Rate limit fuel launches to simulate ball feed rate
+        double currentTime = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+        if (currentTime - m_lastFuelLaunchTime < FUEL_LAUNCH_PERIOD_SEC) {
+            return;
+        }
+        m_lastFuelLaunchTime = currentTime;
+
+        // Get shooter parameters for launch
+        // Estimate velocity from shooter motor voltage (rough approximation)
+        // Typical shooter: 10-12V → ~15-20 m/s exit velocity
+        double shooterVoltage = Math.abs(m_shooter.isRunning() ? 10.0 : 0.0);
+        double launchVelocity = shooterVoltage * 1.7; // Rough conversion: 10V → 17 m/s
+
+        // Get hood angle from ShooterAngleSubsystem
+        double hoodAngleDeg = m_shooterAngle.getAngleDeg();
+
+        // Get turret angle from TurretSubsystem
+        double turretAngleDeg = m_turret.getAngleDeg();
+
+        // Launch the fuel
+        fuelSim.launchFuel(
+            MetersPerSecond.of(launchVelocity),
+            Degrees.of(hoodAngleDeg),
+            Degrees.of(turretAngleDeg),
+            Meters.of(0.4) // Launch height above ground (shooter exit point)
+        );
     }
 }
