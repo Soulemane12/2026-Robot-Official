@@ -134,6 +134,32 @@ public class RobotContainer {
 
         autoChooser = AutoBuilder.buildAutoChooser("Left");
         autoChooser.addOption("None", Commands.none());
+
+        // Simple shooting test for simulation - no vision required
+        autoChooser.addOption("Test Shoot (Sim)", Commands.sequence(
+            // Set hood to 40 degrees for a nice arc
+            m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(40.0)),
+            // Start shooter at 10V
+            m_shooter.runOnce(() -> m_shooter.setVoltage(10.0)),
+            // Wait 1 second for shooter to spin up
+            new WaitCommand(1.0),
+            // Start feeding balls
+            Commands.parallel(
+                m_indexer.runOnce(m_indexer::start),
+                m_rollerToShooter.runOnce(m_rollerToShooter::start)
+            ),
+            // Feed for 10 seconds (20 balls at 0.5s each)
+            new WaitCommand(10.0),
+            // Stop everything
+            Commands.parallel(
+                m_shooter.runOnce(m_shooter::stop),
+                m_indexer.runOnce(m_indexer::stop),
+                m_rollerToShooter.runOnce(m_rollerToShooter::stop)
+            ),
+            // Reset hood to zero
+            m_shooterAngle.runOnce(() -> m_shooterAngle.setAngleDeg(0.0))
+        ));
+
         autoChooser.addOption("Shoot 3 Balls", Commands.sequence(
             m_shooter.runOnce(m_shooter::start),
             new WaitCommand(1.5),
