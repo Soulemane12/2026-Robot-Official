@@ -45,9 +45,9 @@ public final class Constants {
 
     public static final class IntakeConstants {
         public static final double STOW = 0;
-        public static final double INTAKE_POSITION = 15.4;
-        public static final double JOG_VOLTAGE = 2.0;
-        public static final double ROLLER_VOLTAGE = 9.0;
+        public static final double INTAKE_POSITION = -15.4;
+        public static final double JOG_VOLTAGE = 2.67;
+        public static final double ROLLER_VOLTAGE = 11.0;
     }
 
     // AprilTag Alignment PID Constants
@@ -194,13 +194,14 @@ public final class Constants {
 
         static {
             // dist (m) → shooter voltage (V) — matched to measured distances — TODO: tune on robot
-            VOLTAGE_MAP.put(1.328, 7.5); // measured — 6.53V too low, increased
-            VOLTAGE_MAP.put(1.80,  7.0); // tune
-            VOLTAGE_MAP.put(2.05,  8.5); // tune
-            VOLTAGE_MAP.put(2.27,  9.5); // tune — 11.13V was too high
-            VOLTAGE_MAP.put(2.44,  9.8);  // measured
-            VOLTAGE_MAP.put(2.91, 10.0); // 10.78V was too high — tuned down
-            VOLTAGE_MAP.put(3.32, 11.5); // tune
+            VOLTAGE_MAP.put(1.328, 8.5); // measured — 6.53V too low, increased
+            VOLTAGE_MAP.put(1.80,  8.0); // tune
+            VOLTAGE_MAP.put(2.05,  7.5); // tune
+            VOLTAGE_MAP.put(2.27,  8.5); // tune — 11.13V was too high
+            VOLTAGE_MAP.put(2.44,  10.8);  // measured
+            VOLTAGE_MAP.put(2.59,  10.4);  // measured — ~9.86V was too high, shots over
+            VOLTAGE_MAP.put(2.91, 11.0); // 10.78V was too high — tuned down
+            VOLTAGE_MAP.put(3.32, 12.5); // tune
 
             // dist (m) → hood angle (deg) — increases with distance
 
@@ -209,6 +210,7 @@ public final class Constants {
             ANGLE_MAP.put(2.05, 18.32); // *measured
             ANGLE_MAP.put(2.27, 16.0);  // tuned down from 19.62°
             ANGLE_MAP.put(2.44, 17.78); // measured
+            ANGLE_MAP.put(2.59, 19.33); // measured
             ANGLE_MAP.put(2.91, 22.686); // measured
             ANGLE_MAP.put(3.32, 26.57); // *measured
             
@@ -232,7 +234,7 @@ public final class Constants {
     }
 
     public static final class FerryConstants {
-        public static final double VOLTAGE   = 5.0;   // half speed — tune
+        public static final double VOLTAGE   = 10.0;  // ferry speed — tune
         public static final double ANGLE_DEG = 10.0;  // TODO: tune via manual movement
     }
 
@@ -244,14 +246,13 @@ public final class Constants {
         public static final double TX_TO_TURRET_SIGN         = 1.0;
         public static final double TRACKING_ZERO_OFFSET_DEG  = 0.0;
         public static final double TX_DEADBAND_DEG   = 0.7;
-        // HUB AprilTag IDs for 2026 REBUILT - all faces of the HUB
-        public static final int[] BLUE_HUB_TAG_IDS = {18, 19, 20, 21, 24, 25, 26, 27};
-public static final int[] RED_HUB_TAG_IDS  = {2, 3, 4, 5, 8, 9, 10, 11};
+        // HUB shooting tag IDs — excludes ferry zone tags (3,4 for red; 19,20 for blue)
+        public static final int[] BLUE_HUB_TAG_IDS = {18, 21, 24, 25, 26, 27};
+        public static final int[] RED_HUB_TAG_IDS  = {2, 5, 8, 9, 10, 11};
 
-        // Use all hub tags until on-field testing confirms which IDs face which direction
         public static final int[]  BLUE_TRACK_TAG_IDS = BLUE_HUB_TAG_IDS;
         public static final int[]  RED_TRACK_TAG_IDS  = RED_HUB_TAG_IDS;
-        // Ferry mode uses specific alliance zone tags
+        // Ferry mode uses alliance-zone tags only
         public static final int[]  BLUE_FERRY_TAG_IDS = {19, 20};
         public static final int[]  RED_FERRY_TAG_IDS  = {3, 4};
 

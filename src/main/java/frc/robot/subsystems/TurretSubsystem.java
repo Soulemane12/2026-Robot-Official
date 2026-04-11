@@ -99,8 +99,26 @@ public class TurretSubsystem extends SubsystemBase {
         m_motor.stopMotor();
     }
 
+    // Angle range blocked by a physical obstruction — turret cannot see through here
+    private static final double BLOCKED_MIN_DEG = -77.0;
+    private static final double BLOCKED_MAX_DEG = -32.0;
+
+    /** Redirects a target angle away from the blocked zone to the nearest clear boundary. */
+    private double avoidBlockedZone(double targetDeg) {
+        if (targetDeg >= BLOCKED_MIN_DEG && targetDeg <= BLOCKED_MAX_DEG) {
+            double currentDeg = getAngleDeg();
+            if (currentDeg > BLOCKED_MAX_DEG) return BLOCKED_MAX_DEG; // stay on upper side
+            if (currentDeg < BLOCKED_MIN_DEG) return BLOCKED_MIN_DEG; // stay on lower side
+            // Current is also inside — snap to nearest boundary
+            return (Math.abs(targetDeg - BLOCKED_MIN_DEG) < Math.abs(targetDeg - BLOCKED_MAX_DEG))
+                ? BLOCKED_MIN_DEG : BLOCKED_MAX_DEG;
+        }
+        return targetDeg;
+    }
+
     public void setAngleDeg(double targetDeg) {
-        double clamped = clamp(targetDeg, Constants.TurretConstants.MIN_DEG, Constants.TurretConstants.MAX_DEG);
+        double safe    = avoidBlockedZone(targetDeg);
+        double clamped = clamp(safe, Constants.TurretConstants.MIN_DEG, Constants.TurretConstants.MAX_DEG);
         m_motor.setControl(m_mm.withPosition(degToMotorRot(clamped)));
     }
 
@@ -183,10 +201,14 @@ public class TurretSubsystem extends SubsystemBase {
     }
 
     public void aimAtAprilTag() {
-        aimAtAprilTag(false);
+        aimAtAprilTag(false, 0.0);
     }
 
     public void aimAtAprilTag(boolean useFerryOffset) {
+        aimAtAprilTag(useFerryOffset, 0.0);
+    }
+
+    public void aimAtAprilTag(boolean useFerryOffset, double leadDeg) {
         if (!hasTarget()) {
             SmartDashboard.putBoolean("Turret/AimHasTarget", false);
             m_lockedTagId = -1;
@@ -225,7 +247,7 @@ public class TurretSubsystem extends SubsystemBase {
 
         if (Math.abs(tx) < deadband) tx = 0.0;
 
-        double desiredDeg = getAngleDeg() + offset + Constants.VisionConstants.TX_TO_TURRET_SIGN * tx;
+        double desiredDeg = getAngleDeg() + offset + Constants.VisionConstants.TX_TO_TURRET_SIGN * tx + leadDeg;
 
         SmartDashboard.putBoolean("Turret/AimHasTarget", true);
         SmartDashboard.putNumber("Turret/AimTargetDeg", desiredDeg);

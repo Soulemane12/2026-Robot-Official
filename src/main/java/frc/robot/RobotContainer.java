@@ -90,7 +90,7 @@ public class RobotContainer {
         NamedCommands.registerCommand("shooterOff", m_shooter.runOnce(m_shooter::stop));
 
         NamedCommands.registerCommand("autoAim",
-            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter));
+            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter, drivetrain));
 
         // Intake position
         NamedCommands.registerCommand("intakeZero",
@@ -127,10 +127,9 @@ public class RobotContainer {
         NamedCommands.registerCommand("rollerToShooterOff", m_rollerToShooter.runOnce(m_rollerToShooter::stop));
 
         // Waits until shooter flywheel is up to speed before feeding balls — 3s safety timeout
+        // Uses waitUntil (no subsystem requirement) so it can run alongside shooterOn in a race
         NamedCommands.registerCommand("waitForShooterReady",
-            m_shooter.run(() -> {})
-                     .until(m_shooter::isAtSpeed)
-                     .withTimeout(3.0));
+            Commands.waitUntil(m_shooter::isAtSpeed).withTimeout(3.0));
 
         autoChooser = AutoBuilder.buildAutoChooser("Left");
         autoChooser.addOption("None", Commands.none());
@@ -224,17 +223,18 @@ public class RobotContainer {
         // RB: hold to outtake (intake roller + indexer run in reverse), release to stop
         operator.rightBumper().whileTrue(Commands.parallel(
             m_intakeRoller.startEnd(m_intakeRoller::reverse, m_intakeRoller::stop),
-            m_indexer.startEnd(m_indexer::reverse, m_indexer::stop)
+            m_indexer.startEnd(m_indexer::reverse, m_indexer::stop),
+            m_rollerToShooter.startEnd(m_rollerToShooter::reverse, m_rollerToShooter::stop)
         ));
 
         // B alone: ferry auto-aim position — vision tracks tag with offset, NO flywheel
         operator.b().and(operator.a().negate()).whileTrue(
-            new FerryAutoAimCommand(m_turret, m_shooterAngle)
+            new FerryAutoAimCommand(m_turret, m_shooterAngle, drivetrain)
         );
 
         // B + A: ferry shoot with auto-aim — vision tracks + flywheel + feed
         operator.b().and(operator.a()).whileTrue(Commands.parallel(
-            new FerryAutoAimCommand(m_turret, m_shooterAngle),
+            new FerryAutoAimCommand(m_turret, m_shooterAngle, drivetrain),
             m_shooter.run(() -> m_shooter.setVoltage(Constants.FerryConstants.VOLTAGE))
                      .finallyDo(m_shooter::stop),
             m_rollerToShooter.startEnd(m_rollerToShooter::start, m_rollerToShooter::stop)
@@ -242,19 +242,28 @@ public class RobotContainer {
 
         // RT alone: auto-aim (turret tracks + hood by distance), NO flywheel
         operator.rightTrigger(0.1).and(operator.a().negate()).whileTrue(
-            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter)
+            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter, drivetrain)
+        );
+
+        // When RT is released, return turret to zero
+        operator.rightTrigger(0.1).onFalse(
+            m_turret.run(() -> m_turret.setAngleDeg(0.0))
+                    .until(() -> m_turret.atAngle(0.0))
+                    .withTimeout(2.0)
         );
 
         // RT + A: auto-aim shoot — flywheel at table voltage + feed
         operator.rightTrigger(0.1).and(operator.a()).whileTrue(Commands.parallel(
-            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter),
+            new AutoAimCommand(m_turret, m_shooterAngle, m_shooter, drivetrain),
             m_shooter.run(() -> {
                 double dist = m_turret.getDistanceToTargetM();
                 m_shooter.setVoltage(dist > 0.0
                     ? Constants.ShooterTable.getVoltage(dist)
                     : 10.0);
             }).finallyDo(m_shooter::stop),
-            m_rollerToShooter.startEnd(m_rollerToShooter::start, m_rollerToShooter::stop)
+            m_rollerToShooter.startEnd(m_rollerToShooter::start, m_rollerToShooter::stop),
+            m_indexer.startEnd(m_indexer::start, m_indexer::stop)
+
         ));
 
 

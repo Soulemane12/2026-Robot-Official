@@ -9,24 +9,11 @@
           "data": {
             "commands": [
               {
-                "type": "path",
+                "type": "wait",
                 "data": {
-                  "pathName": "Center_Path"
+                  "waitTime": 10.7
                 }
               },
-              {
-                "type": "named",
-                "data": {
-                  "name": "autoAim"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "type": "race",
-          "data": {
-            "commands": [
               {
                 "type": "named",
                 "data": {
@@ -46,7 +33,7 @@
                     {
                       "type": "wait",
                       "data": {
-                        "waitTime": 1.0
+                        "waitTime": 0.7
                       }
                     },
                     {
@@ -67,12 +54,6 @@
                           }
                         ]
                       }
-                    },
-                    {
-                      "type": "wait",
-                      "data": {
-                        "waitTime": 7.0
-                      }
                     }
                   ]
                 }
@@ -81,38 +62,44 @@
           }
         },
         {
-          "type": "race",
+          "type": "parallel",
           "data": {
             "commands": [
               {
                 "type": "named",
                 "data": {
-                  "name": "autoAim"
+                  "name": "shooterOff"
                 }
               },
               {
-                "type": "parallel",
+                "type": "named",
                 "data": {
-                  "commands": [
-                    {
-                      "type": "named",
-                      "data": {
-                        "name": "shooterOff"
-                      }
-                    },
-                    {
-                      "type": "named",
-                      "data": {
-                        "name": "indexerOff"
-                      }
-                    },
-                    {
-                      "type": "named",
-                      "data": {
-                        "name": "rollerToShooterOff"
-                      }
-                    }
-                  ]
+                  "name": "indexerOff"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "rollerToShooterOff"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "parallel",
+          "data": {
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "turretZero"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "hoodZero"
                 }
               }
             ]
@@ -121,7 +108,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Center_Path_Turnaround"
+            "pathName": "Right_Path_Bit"
           }
         }
       ]

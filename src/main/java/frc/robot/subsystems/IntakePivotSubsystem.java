@@ -13,9 +13,10 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 
 public class IntakePivotSubsystem extends SubsystemBase {
-    private static final double DEPLOYED_TARGET_MIN_ROT = 5.0;
+    private static final double DEPLOYED_TARGET_MIN_ROT = 5.0;   // magnitude threshold for deploy detection
     private static final double DEPLOYED_STALL_MARGIN_ROT = 0.08;
-    private static final double LOWER_LIMIT_ROT = 0.67;
+    private static final double LOWER_LIMIT_ROT = -16.0;          // most negative allowed (intake out)
+    private static final double UPPER_LIMIT_ROT = 0.5;            // most positive allowed (past stow)
     private static final double STOW_STOP_MARGIN_ROT = 0.20;
     private static final double STALL_VELOCITY_RPS = 1.0;
     private static final double STALL_CURRENT_A = 30.0;
@@ -69,25 +70,21 @@ public class IntakePivotSubsystem extends SubsystemBase {
             boolean stalled = getStatorCurrentA() >= STALL_CURRENT_A
                     && Math.abs(getVelocityRPS()) <= STALL_VELOCITY_RPS;
 
-            // Stop at upper hard stop
-            if (getPositionRotations() >= 101 && getVelocityRPS() > 0.0) {
+            // Stop at upper hard stop (overshoot past stow in positive direction)
+            if (getPositionRotations() >= UPPER_LIMIT_ROT && getVelocityRPS() > 0.0) {
                 stop();
             }
-            // Stop at lower hard stop (stow) to prevent stalling.
-            // Triggers whether motor is still moving toward stop (vel < 0)
-            // OR holding against it with MotionMagic (vel ≈ 0).
-            // Guard: only when targeting stow so deploying still works.
+            // Stop at stow (target near 0, position close to stow from negative side)
             if (m_positionControlActive
-                    && m_targetRotations <= 1.0
-                    && (getPositionRotations() <= m_targetRotations + STOW_STOP_MARGIN_ROT || stalled)) {
+                    && m_targetRotations >= -1.0
+                    && (getPositionRotations() >= m_targetRotations - STOW_STOP_MARGIN_ROT || stalled)) {
                 stop();
             }
 
-            // Stop near the deployed target if the pivot has slowed or overshot, so MotionMagic
-            // does not keep pushing the mechanism into a hard stop.
+            // Stop near the deployed target (negative position) to avoid pushing into hard stop
             if (m_positionControlActive
-                    && m_targetRotations >= DEPLOYED_TARGET_MIN_ROT
-                    && ((getPositionRotations() >= m_targetRotations - DEPLOYED_STALL_MARGIN_ROT
+                    && m_targetRotations <= -DEPLOYED_TARGET_MIN_ROT
+                    && ((getPositionRotations() <= m_targetRotations + DEPLOYED_STALL_MARGIN_ROT
                             && Math.abs(getVelocityRPS()) <= STALL_VELOCITY_RPS)
                         || stalled)) {
                 stop();
@@ -116,7 +113,7 @@ public class IntakePivotSubsystem extends SubsystemBase {
 
     public void goTo(double rotations) {
         if (m_limitsEnabled) {
-            m_targetRotations = Math.max(LOWER_LIMIT_ROT, Math.min(101.0, rotations));
+            m_targetRotations = Math.max(LOWER_LIMIT_ROT, Math.min(UPPER_LIMIT_ROT, rotations));
         } else {
             m_targetRotations = rotations;
         }
@@ -127,7 +124,7 @@ public class IntakePivotSubsystem extends SubsystemBase {
     public void jogVolts(double volts) {
         m_positionControlActive = false;
         if (m_limitsEnabled) {
-            if (volts > 0.0 && getPositionRotations() >= 101) {
+            if (volts > 0.0 && getPositionRotations() >= UPPER_LIMIT_ROT) {
                 stop();
                 return;
             }

@@ -9,11 +9,155 @@
           "data": {
             "commands": [
               {
-                "type": "wait",
+                "type": "named",
                 "data": {
-                  "waitTime": 10.7
+                  "name": "autoAim"
                 }
               },
+              {
+                "type": "named",
+                "data": {
+                  "name": "shooterOn"
+                }
+              },
+              {
+                "type": "sequential",
+                "data": {
+                  "commands": [
+                    {
+                      "type": "wait",
+                      "data": {
+                        "waitTime": 0.7
+                      }
+                    },
+                    {
+                      "type": "parallel",
+                      "data": {
+                        "commands": [
+                          {
+                            "type": "named",
+                            "data": {
+                              "name": "indexerOn"
+                            }
+                          },
+                          {
+                            "type": "named",
+                            "data": {
+                              "name": "rollerToShooterOn"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "wait",
+                      "data": {
+                        "waitTime": 8.3
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "parallel",
+          "data": {
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "shooterOff"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "indexerOff"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "rollerToShooterOff"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "turretZero"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "hoodZero"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Left_Path1"
+          }
+        },
+        {
+          "type": "parallel",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "Left_Path2"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "rollersOn"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "intakeOut"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "parallel",
+          "data": {
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "rollersOff"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "intakeStow"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Left Path 3"
+          }
+        },
+        {
+          "type": "race",
+          "data": {
+            "commands": [
               {
                 "type": "named",
                 "data": {
@@ -54,6 +198,12 @@
                           }
                         ]
                       }
+                    },
+                    {
+                      "type": "wait",
+                      "data": {
+                        "waitTime": 7.0
+                      }
                     }
                   ]
                 }
@@ -84,31 +234,6 @@
                 }
               }
             ]
-          }
-        },
-        {
-          "type": "parallel",
-          "data": {
-            "commands": [
-              {
-                "type": "named",
-                "data": {
-                  "name": "turretZero"
-                }
-              },
-              {
-                "type": "named",
-                "data": {
-                  "name": "hoodZero"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "Left_Path"
           }
         }
       ]

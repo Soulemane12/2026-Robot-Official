@@ -9,11 +9,24 @@
           "data": {
             "commands": [
               {
-                "type": "wait",
+                "type": "path",
                 "data": {
-                  "waitTime": 10.7
+                  "pathName": "Center_Path"
                 }
               },
+              {
+                "type": "named",
+                "data": {
+                  "name": "autoAim"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "race",
+          "data": {
+            "commands": [
               {
                 "type": "named",
                 "data": {
@@ -33,7 +46,7 @@
                     {
                       "type": "wait",
                       "data": {
-                        "waitTime": 0.7
+                        "waitTime": 1.0
                       }
                     },
                     {
@@ -54,6 +67,12 @@
                           }
                         ]
                       }
+                    },
+                    {
+                      "type": "wait",
+                      "data": {
+                        "waitTime": 7.0
+                      }
                     }
                   ]
                 }
@@ -62,44 +81,38 @@
           }
         },
         {
-          "type": "parallel",
+          "type": "race",
           "data": {
             "commands": [
               {
                 "type": "named",
                 "data": {
-                  "name": "shooterOff"
+                  "name": "autoAim"
                 }
               },
               {
-                "type": "named",
+                "type": "parallel",
                 "data": {
-                  "name": "indexerOff"
-                }
-              },
-              {
-                "type": "named",
-                "data": {
-                  "name": "rollerToShooterOff"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "type": "parallel",
-          "data": {
-            "commands": [
-              {
-                "type": "named",
-                "data": {
-                  "name": "turretZero"
-                }
-              },
-              {
-                "type": "named",
-                "data": {
-                  "name": "hoodZero"
+                  "commands": [
+                    {
+                      "type": "named",
+                      "data": {
+                        "name": "shooterOff"
+                      }
+                    },
+                    {
+                      "type": "named",
+                      "data": {
+                        "name": "indexerOff"
+                      }
+                    },
+                    {
+                      "type": "named",
+                      "data": {
+                        "name": "rollerToShooterOff"
+                      }
+                    }
+                  ]
                 }
               }
             ]
@@ -108,7 +121,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Right_Path"
+            "pathName": "CenterEnd_TO_BIt"
           }
         }
       ]

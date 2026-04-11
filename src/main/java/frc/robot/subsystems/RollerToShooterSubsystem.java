@@ -41,6 +41,11 @@ public class RollerToShooterSubsystem extends SubsystemBase {
         }
     }
 
+    public void reverse() {
+        m_running = false;
+        m_motor.setControl(m_voltageOut.withOutput(-Constants.RollerToShooterConstants.VOLTAGE));
+    }
+
     public void stop() {
         m_running = false;
         m_motor.setControl(m_voltageOut.withOutput(0.0));
